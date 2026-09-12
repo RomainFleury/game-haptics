@@ -80,7 +80,7 @@ export function FillUpBarRecoilSettings(props: {
   const onTest = async () => {
     setCalibrationError(null);
     setFillUpTestResult(null);
-    if (!state.roi) throw new Error("No fill-up ROI set — draw a box on the heat bar");
+    if (!state.zones.length) throw new Error("No fill-up ROI set — draw a box on the heat bar");
     const imagePath = lastCapturedImage?.path?.trim();
     if (!imagePath) throw new Error("Capture or select a screenshot first");
 

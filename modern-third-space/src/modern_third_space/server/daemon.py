@@ -1849,9 +1849,15 @@ class VestDaemon:
                                 f"engine={d.get('engine')} cap_ms={cap_ms} eval_ms={eval_ms}"
                             )
                         else:
+                            # digits is schema max-width only (templates); text OCR is variable 1–3.
+                            digits_bit = (
+                                f"digits={d.get('digits')} "
+                                if d.get("engine") == "templates"
+                                else ""
+                            )
                             line = (
                                 f"[screen_health_test] {dtype} name={name} read={d.get('read')} "
-                                f"ocr_text={d.get('ocr_text')!r} digits={d.get('digits')} "
+                                f"ocr_text={d.get('ocr_text')!r} {digits_bit}"
                                 f"engine={d.get('engine')} rect={d.get('rect_px')} "
                                 f"cap_ms={cap_ms} eval_ms={eval_ms} image={d.get('image_path')}"
                             )

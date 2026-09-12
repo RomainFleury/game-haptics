@@ -202,7 +202,8 @@ function DrawnSettings(props: {
     colorVignetteRois: colorVignette.rois,
     healthBarRoi: hb.roi,
     healthNumberRoi: hn.roi,
-    ammoRoi: recoil.roi,
+    ammoRoi: recoil.zones[0]?.rect ?? null,
+    ammoZones: recoil.zones,
   });
   const hasAny =
     drawn.hasRedness || drawn.hasColorVignette || drawn.hasHealthBar || drawn.hasHealthNumber || drawn.hasAmmo;

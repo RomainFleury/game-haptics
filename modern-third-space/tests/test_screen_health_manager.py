@@ -581,6 +581,37 @@ def test_parse_profile_recoil_ammo_number():
     assert parsed.ammo_numbers[0].templates is None
 
 
+def test_parse_profile_recoil_ammo_number_zones():
+    """Dual-wield: two ammo number ROIs under recoil.zones[]."""
+    manager = shm.ScreenHealthManager()
+    parsed = manager._parse_profile(
+        {
+            "schema_version": 0,
+            "name": "rdr_dual_ammo",
+            "capture": {"monitor_index": 1, "tick_ms": 50},
+            "detectors": [],
+            "recoil": {
+                "type": "ammo_number",
+                "engine": "daemon",
+                "duration_ms": 40,
+                "digits": 3,
+                "readout": {"min": 0, "max": 999, "stable_reads": 2},
+                "hit_on_decrease": {"min_drop": 1, "cooldown_ms": 50},
+                "zones": [
+                    {"name": "ammo_primary", "roi": {"x": 0.82, "y": 0.88, "w": 0.06, "h": 0.04}},
+                    {"name": "ammo_offhand", "roi": {"x": 0.74, "y": 0.88, "w": 0.06, "h": 0.04}},
+                ],
+            },
+        }
+    )
+    assert len(parsed.ammo_numbers) == 2
+    assert parsed.ammo_numbers[0].name == "ammo_primary"
+    assert parsed.ammo_numbers[1].name == "ammo_offhand"
+    assert parsed.ammo_numbers[0].rect.x == pytest.approx(0.82)
+    assert parsed.ammo_numbers[1].rect.x == pytest.approx(0.74)
+    assert parsed.fill_up_bars == []
+
+
 def test_parse_profile_skips_empty_redness_rois():
     manager = shm.ScreenHealthManager()
     parsed = manager._parse_profile(

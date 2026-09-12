@@ -33,6 +33,8 @@ class DigitOcrBackend(ABC):
     # Shown on Daemon Settings. False = kept for CLI eval / future versions only.
     offered_in_ui: bool = False
     ui_summary: str = ""
+    # Cap preprocess variants for slow engines (None = try all).
+    max_roi_variants: Optional[int] = None
 
     def unavailable_reason(self) -> Optional[str]:
         return None
@@ -48,6 +50,14 @@ class DigitOcrBackend(ABC):
             "offered_in_ui": self.offered_in_ui,
             "ui_summary": self.ui_summary,
         }
+
+    def recognize_text(self, roi: OcrRoi) -> str:
+        """
+        Optional raw OCR text for diagnostics / parsing.
+
+        Text engines should override this. Default is empty (number-only backends).
+        """
+        return ""
 
     @abstractmethod
     def read_number(self, roi: OcrRoi) -> Optional[int]:

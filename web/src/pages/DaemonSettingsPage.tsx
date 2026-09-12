@@ -31,7 +31,13 @@ export function DaemonSettingsPage() {
   const offered = useMemo(() => {
     const flagged = engines.filter((e) => e.offered_in_ui === true);
     if (flagged.length > 0) return flagged;
-    return engines.filter((e) => e.id === "windows_ocr" || e.id === "opencv_knn");
+    return engines.filter(
+      (e) =>
+        e.id === "windows_ocr" ||
+        e.id === "opencv_knn" ||
+        e.id === "rapidocr" ||
+        e.id === "tesseract"
+    );
   }, [engines]);
   const offeredIds = useMemo(() => new Set(offered.map((e) => e.id)), [offered]);
   const activeHidden = Boolean(active) && engines.some((e) => e.id === active) && !offeredIds.has(active);
