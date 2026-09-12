@@ -9,6 +9,7 @@ This is a Third Space Vest haptic device debugger. It maintains legacy driver co
 - **NEVER modify** `legacy-do-not-change/` - This is historical code that must remain untouched
 - **Isolation principle**: `vest/` package must stay isolated from game integrations
 - **Daemon-centric**: All vest commands should go through the daemon (TCP port 5050)
+- **Canonical repo only**: `RomainFleury/game-haptics` is the only GitHub project that matters. Do **not** add a git `upstream` remote for `qdot/libthirdspacevest`, open PRs against it, or treat it as a contribution target — that parent is archived and unused. When creating PRs, always target `master` on `RomainFleury/game-haptics`.
 
 ## Architecture
 

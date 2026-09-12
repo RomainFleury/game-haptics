@@ -2,6 +2,8 @@
 
 This repository is organized to keep the original `libthirdspacevest` sources intact while adding modern tooling and new documentation archives around them.
 
+**Origin / rename:** We started from [`qdot/libthirdspacevest`](https://github.com/qdot/libthirdspacevest) (Third Space Vest). The project grew to cover custom haptic systems beyond that hardware, so the repository was renamed to **game-haptics**. This repo (**`RomainFleury/game-haptics`**) is the only project that matters: the original parent is archived, we do not use it as git `upstream`, and we will not open PRs or contribute back to it. Legacy Vest sources remain under `legacy-do-not-change/` and must stay untouched.
+
 ## TLDR - Quickstart
 
 When starting a chat, just type:
