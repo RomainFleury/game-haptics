@@ -48,7 +48,8 @@ namespace ThirdSpace_GunmanContracts
             return AccessTools.TypeByName(name)
                 ?? AccessTools.TypeByName("Il2Cpp." + name)
                 ?? AccessTools.TypeByName("Il2CppHurricaneVR.Framework.Weapons.Guns." + name)
-                ?? AccessTools.TypeByName("Il2CppHurricaneVR.Framework.Weapons.Bow." + name);
+                ?? AccessTools.TypeByName("Il2CppHurricaneVR.Framework.Weapons.Bow." + name)
+                ?? AccessTools.TypeByName("Il2CppHurricaneVR.Framework.Core." + name);
         }
 
         internal static MethodBase FindMethod(string typeName, string methodName)
@@ -62,6 +63,8 @@ namespace ThirdSpace_GunmanContracts
             var method = AccessTools.Method(type, methodName);
             if (method == null)
                 MelonLogger.Warning("[ThirdSpace] Method not found: " + typeName + "." + methodName + " (patch skipped)");
+            else
+                MelonLogger.Msg("[ThirdSpace] Patch target OK: " + type.FullName + "." + methodName);
             return method;
         }
 
@@ -75,15 +78,32 @@ namespace ThirdSpace_GunmanContracts
                 var fieldValue = field.GetValue();
                 if (fieldValue != null) return fieldValue;
                 var prop = traverse.Property(name);
-                return prop.GetValue();
+                var propValue = prop.GetValue();
+                if (propValue != null) return propValue;
             }
             catch { /* fall through */ }
 
             var type = obj.GetType();
             var accessProp = AccessTools.Property(type, name);
-            if (accessProp != null) return accessProp.GetValue(obj, null);
+            if (accessProp != null)
+            {
+                try { return accessProp.GetValue(obj, null); }
+                catch { /* fall through */ }
+            }
             var accessField = AccessTools.Field(type, name);
-            return accessField?.GetValue(obj);
+            if (accessField != null)
+            {
+                try { return accessField.GetValue(obj); }
+                catch { /* fall through */ }
+            }
+            // Il2Cpp often exposes members as get_Name / set_Name methods
+            var getter = AccessTools.Method(type, "get_" + name);
+            if (getter != null)
+            {
+                try { return getter.Invoke(obj, null); }
+                catch { /* fall through */ }
+            }
+            return null;
         }
 
         internal static object GetPath(object obj, params string[] names)
@@ -202,7 +222,29 @@ namespace ThirdSpace_GunmanContracts
             if (isLeft && !isRight) return "left";
             if (isRight) return "right";
             if (isLeft) return "left";
+
+            // Fallback: grabber refs (works when bool props fail via Il2Cpp reflection)
+            if (GetMember(primaryGrab, "RightHandGrabber") != null) return "right";
+            if (GetMember(primaryGrab, "LeftHandGrabber") != null) return "left";
             return null;
+        }
+
+        /// <summary>
+        /// Resolve firing hand; never returns null so fire events are not silently dropped.
+        /// Non-VR / FPS mode has no VR grabbers — default to right.
+        /// </summary>
+        internal static string ResolveFireHand(object gun)
+        {
+            object primaryGrab = GetMember(gun, "myGrabbable") ?? GetMember(gun, "Grabbable");
+            string hand = HandFromGrabbable(primaryGrab);
+            if (hand != null) return hand;
+
+            object stabilizer = GetMember(gun, "myStabilizerGrabbable") ?? GetMember(gun, "StabilizerGrabbable");
+            hand = HandFromGrabbable(stabilizer);
+            if (hand != null) return hand;
+
+            // Flatscreen / FPS: no VR hands holding the gun
+            return "right";
         }
 
         internal static bool IsAutomaticFire(object gun)
@@ -211,6 +253,28 @@ namespace ThirdSpace_GunmanContracts
             if (fireType == null) return false;
             string text = fireType.ToString() ?? "";
             return text.IndexOf("Automatic", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        /// <summary>
+        /// Shared emit for VR OnFire and flatscreen FPSshoot.
+        /// </summary>
+        internal static void EmitGunFire(object gun, string source)
+        {
+            if (daemon == null || !daemon.IsConnected) return;
+            if (gun == null) return;
+            if (GetBool(gun, "EnemyGun")) return;
+            if (GetBool(gun, "isBow")) return;
+
+            string hand = ResolveFireHand(gun);
+
+            string eventName = "gun_fire";
+            if (GetBool(gun, "isShotgun"))
+                eventName = "shotgun_fire";
+            else if (IsAutomaticFire(gun))
+                eventName = "rifle_fire";
+
+            daemon.SendEvent(eventName, hand, priority: 2);
+            MelonLogger.Msg("[ThirdSpace] Event: " + eventName + " (" + hand + ", via " + source + ")");
         }
 
         [HarmonyPatch]
@@ -233,7 +297,10 @@ namespace ThirdSpace_GunmanContracts
                         daemon.SendEvent("player_hit", priority: 3);
                     MelonLogger.Msg("[ThirdSpace] Event: player_hit" + (angle.HasValue ? " (" + angle.Value.ToString("0") + "°)" : ""));
                 }
-                catch { /* HurtPlayer layout can vary */ }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning("[ThirdSpace] HurtPlayer handler failed: " + ex.Message);
+                }
             }
         }
 
@@ -280,26 +347,32 @@ namespace ThirdSpace_GunmanContracts
             [HarmonyPostfix]
             public static void Postfix(object __instance)
             {
-                if (daemon == null || !daemon.IsConnected) return;
-                try
+                try { EmitGunFire(__instance, "OnFire"); }
+                catch (Exception ex)
                 {
-                    if (GetBool(__instance, "EnemyGun")) return;
-                    if (GetBool(__instance, "isBow")) return;
-
-                    object primaryGrab = GetMember(__instance, "myGrabbable");
-                    string hand = HandFromGrabbable(primaryGrab);
-                    if (hand == null) return;
-
-                    string eventName = "gun_fire";
-                    if (GetBool(__instance, "isShotgun"))
-                        eventName = "shotgun_fire";
-                    else if (IsAutomaticFire(__instance))
-                        eventName = "rifle_fire";
-
-                    daemon.SendEvent(eventName, hand, priority: 2);
-                    MelonLogger.Msg("[ThirdSpace] Event: " + eventName + " (" + hand + ")");
+                    MelonLogger.Warning("[ThirdSpace] OnFire handler failed: " + ex.Message);
                 }
-                catch { /* OnFire layout can vary by game version */ }
+            }
+        }
+
+        /// <summary>
+        /// Flatscreen / non-VR fire path. VR grabbers are absent, so OnFire alone may never
+        /// emit usable hand info — and some FPS weapons call FPSshoot instead of OnFire.
+        /// </summary>
+        [HarmonyPatch]
+        public class Patch_FPSShoot
+        {
+            static bool Prepare() => FindMethod("ANBHVRGunBase", "FPSshoot") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBHVRGunBase", "FPSshoot");
+
+            [HarmonyPostfix]
+            public static void Postfix(object __instance)
+            {
+                try { EmitGunFire(__instance, "FPSshoot"); }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning("[ThirdSpace] FPSshoot handler failed: " + ex.Message);
+                }
             }
         }
 
@@ -321,7 +394,10 @@ namespace ThirdSpace_GunmanContracts
                     daemon.SendEvent("bow_fire", hand, priority: 2);
                     MelonLogger.Msg("[ThirdSpace] Event: bow_fire (" + hand + ")");
                 }
-                catch { /* Bow layout can vary */ }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning("[ThirdSpace] ShootArrow handler failed: " + ex.Message);
+                }
             }
         }
     }

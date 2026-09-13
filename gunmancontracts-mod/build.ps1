@@ -15,9 +15,12 @@ Write-Host "=== Third Space Vest Gunman Contracts Mod Build ===" -ForegroundColo
 
 if (-not $GameDir) {
     $candidates = @(
+        "G:\Jeux\SteamLibrary\steamapps\common\Gunman Contracts - Stand Alone",
         "F:\SteamLibrary\steamapps\common\Gunman Contracts",
+        "F:\SteamLibrary\steamapps\common\Gunman Contracts - Stand Alone",
         "F:\SteamLibrary\steamapps\common\GunmanContracts",
         "C:\Program Files (x86)\Steam\steamapps\common\Gunman Contracts",
+        "C:\Program Files (x86)\Steam\steamapps\common\Gunman Contracts - Stand Alone",
         "C:\Program Files (x86)\Steam\steamapps\common\GunmanContracts"
     )
     foreach ($c in $candidates) {

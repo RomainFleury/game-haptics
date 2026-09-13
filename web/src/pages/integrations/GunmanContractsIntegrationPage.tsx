@@ -52,7 +52,11 @@ export function GunmanContractsIntegrationPage() {
     setInstallMessage(null);
     const result = await installMod();
     if (result.success) {
-      setInstallMessage(`✓ Mod installed: ${result.copiedFiles?.join(", ")}`);
+      setInstallMessage(
+        result.warning
+          ? `✓ Mod copied, but MelonLoader is missing — ${result.warning}`
+          : `✓ Mod installed: ${result.copiedFiles?.join(", ")}`
+      );
     } else {
       setInstallMessage(`✗ Installation failed: ${result.error}`);
     }
@@ -101,13 +105,28 @@ export function GunmanContractsIntegrationPage() {
           </div>
         </div>
         <div className="flex items-center justify-between mb-3">
-          <div className="text-sm">
-            {modStatus.installed ? (
-              <span className="text-emerald-400">✓ ThirdSpace_GunmanContracts.dll is in Mods/</span>
-            ) : gameDir ? (
-              <span className="text-yellow-400">⚠ Mod not installed</span>
-            ) : (
+          <div className="text-sm space-y-1">
+            {!gameDir ? (
               <span className="text-slate-500">Select game directory first</span>
+            ) : (
+              <>
+                <div>
+                  {modStatus.dllInstalled ? (
+                    <span className="text-emerald-400">✓ ThirdSpace_GunmanContracts.dll is in Mods/</span>
+                  ) : (
+                    <span className="text-yellow-400">⚠ Mod DLL not installed</span>
+                  )}
+                </div>
+                <div>
+                  {modStatus.melonLoaderInstalled ? (
+                    <span className="text-emerald-400">✓ MelonLoader detected</span>
+                  ) : (
+                    <span className="text-rose-400">
+                      ✗ MelonLoader not found — mods will not load (no live events)
+                    </span>
+                  )}
+                </div>
+              </>
             )}
           </div>
           <button
@@ -115,9 +134,25 @@ export function GunmanContractsIntegrationPage() {
             disabled={loading || !gameDir}
             className="rounded-lg bg-blue-600/80 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {modStatus.installed ? "Reinstall Mod" : "Install Mod"}
+            {modStatus.dllInstalled ? "Reinstall Mod" : "Install Mod"}
           </button>
         </div>
+        {gameDir && !modStatus.melonLoaderInstalled && (
+          <p className="text-xs text-rose-300/90 mb-2 rounded-lg bg-rose-500/10 ring-1 ring-rose-500/20 px-3 py-2">
+            Install{" "}
+            <a
+              href="https://github.com/LavaGang/MelonLoader/releases"
+              target="_blank"
+              rel="noreferrer"
+              className="underline hover:text-rose-200"
+            >
+              MelonLoader 0.6+
+            </a>{" "}
+            into this game folder, launch once so it creates{" "}
+            <code className="bg-slate-800 px-1 rounded">MelonLoader/</code>, then relaunch the game.
+            The in-game “cheats” watermark alone does not mean MelonLoader is installed.
+          </p>
+        )}
         {installMessage && (
           <p
             className={`text-xs mt-2 ${installMessage.startsWith("✓") ? "text-emerald-400" : "text-red-400"}`}

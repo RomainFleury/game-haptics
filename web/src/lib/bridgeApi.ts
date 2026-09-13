@@ -594,6 +594,8 @@ declare global {
       gunmancontractsCheckModInstalled: () => Promise<{
         success: boolean;
         installed?: boolean;
+        dllInstalled?: boolean;
+        melonLoaderInstalled?: boolean;
         sourceAvailable?: boolean;
         missingFiles?: string[];
         gameDir?: string;
@@ -603,6 +605,7 @@ declare global {
         success: boolean;
         copiedFiles?: string[];
         destination?: string;
+        warning?: string;
         error?: string;
       }>;
       // Generic Screen Health Watcher API
@@ -1234,6 +1237,8 @@ export async function gunmancontractsBrowseGameDir(): Promise<{
 export async function gunmancontractsCheckModInstalled(): Promise<{
   success: boolean;
   installed?: boolean;
+  dllInstalled?: boolean;
+  melonLoaderInstalled?: boolean;
   sourceAvailable?: boolean;
   missingFiles?: string[];
   gameDir?: string;
@@ -1246,6 +1251,7 @@ export async function gunmancontractsInstallMod(): Promise<{
   success: boolean;
   copiedFiles?: string[];
   destination?: string;
+  warning?: string;
   error?: string;
 }> {
   return await ensureBridge().gunmancontractsInstallMod();

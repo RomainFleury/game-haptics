@@ -54,6 +54,25 @@ function modsFolder(gameDir) {
   return path.join(gameDir, "Mods");
 }
 
+/**
+ * MelonLoader must inject into the game for Mods/*.dll to load.
+ * Without it, our DLL can sit in Mods/ and never run.
+ */
+function detectMelonLoader(gameDir) {
+  const melonDir = path.join(gameDir, "MelonLoader");
+  const proxies = ["version.dll", "winhttp.dll", "winmm.dll", "dinput8.dll"];
+  const hasMelonDir = fs.existsSync(melonDir);
+  const hasProxy = proxies.some((name) => fs.existsSync(path.join(gameDir, name)));
+  const hasDoorstop = fs.existsSync(path.join(gameDir, "doorstop_config.ini"));
+  const installed = hasMelonDir || hasProxy || hasDoorstop;
+  return {
+    installed,
+    hasMelonDir,
+    hasProxy,
+    hasDoorstop,
+  };
+}
+
 function tryBuildMod(gameDir) {
   const script = path.join(repoRoot(), "gunmancontracts-mod", "build.ps1");
   if (!fs.existsSync(script)) {
@@ -178,11 +197,16 @@ function registerGunmanContractsHandlers(getMainWindow) {
       const destPath = path.join(modsFolder(gameDir), MOD_DLL);
       const sourceDir = getModSourcePath();
       const sourcePath = path.join(sourceDir, MOD_DLL);
+      const dllInstalled = fs.existsSync(destPath);
+      const melon = detectMelonLoader(gameDir);
       return {
         success: true,
-        installed: fs.existsSync(destPath),
+        // Fully ready only when MelonLoader can load the DLL
+        installed: dllInstalled && melon.installed,
+        dllInstalled,
+        melonLoaderInstalled: melon.installed,
         sourceAvailable: fs.existsSync(sourcePath),
-        missingFiles: fs.existsSync(destPath) ? [] : [MOD_DLL],
+        missingFiles: dllInstalled ? [] : [MOD_DLL],
         gameDir,
       };
     } catch (error) {
@@ -231,6 +255,17 @@ function registerGunmanContractsHandlers(getMainWindow) {
       const destPath = path.join(destDir, MOD_DLL);
       fs.copyFileSync(sourcePath, destPath);
       console.log(`[gunmancontracts] Copied ${MOD_DLL} -> ${destPath}`);
+
+      const melon = detectMelonLoader(gameDir);
+      if (!melon.installed) {
+        return {
+          success: true,
+          copiedFiles: [MOD_DLL],
+          destination: destDir,
+          warning:
+            "DLL copied, but MelonLoader is not installed in this folder. Mods will not load until you install MelonLoader 0.6+ and launch the game once.",
+        };
+      }
 
       return {
         success: true,
