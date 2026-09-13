@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { useBattleSisterIntegration, BattleSisterGameEvent } from "../../hooks/useBattleSisterIntegration";
 import { GameIntegrationPage } from "../../components/GameIntegrationPage";
+import {
+  MelonModInstallStatus,
+  formatMelonInstallMessage,
+} from "../../components/MelonModInstallStatus";
 import { getIntegratedGame } from "../../data/integratedGames";
 import type { GameEvent, EventDisplayInfo, ModInfo } from "../../types/integratedGames";
 
@@ -49,11 +53,7 @@ export function BattleSisterIntegrationPage() {
   const handleInstallMod = async () => {
     setInstallMessage(null);
     const result = await installMod();
-    if (result.success) {
-      setInstallMessage(`✓ Mod installed: ${result.copiedFiles?.join(", ")}`);
-    } else {
-      setInstallMessage(`✗ Installation failed: ${result.error}`);
-    }
+    setInstallMessage(formatMelonInstallMessage(result));
   };
 
   const events: GameEvent[] = gameEvents.map((e: BattleSisterGameEvent) => ({
@@ -97,29 +97,14 @@ export function BattleSisterIntegrationPage() {
             </button>
           </div>
         </div>
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-sm">
-            {modStatus.installed ? (
-              <span className="text-emerald-400">✓ ThirdSpace_BattleSister.dll is in Mods/</span>
-            ) : gameDir ? (
-              <span className="text-yellow-400">⚠ Mod not installed</span>
-            ) : (
-              <span className="text-slate-500">Select game directory first</span>
-            )}
-          </div>
-          <button
-            onClick={handleInstallMod}
-            disabled={loading || !gameDir}
-            className="rounded-lg bg-blue-600/80 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {modStatus.installed ? "Reinstall Mod" : "Install Mod"}
-          </button>
-        </div>
-        {installMessage && (
-          <p className={`text-xs mt-2 ${installMessage.startsWith("✓") ? "text-emerald-400" : "text-red-400"}`}>
-            {installMessage}
-          </p>
-        )}
+        <MelonModInstallStatus
+          gameDir={gameDir}
+          modDllName="ThirdSpace_BattleSister.dll"
+          modStatus={modStatus}
+          loading={loading}
+          installMessage={installMessage}
+          onInstall={() => void handleInstallMod()}
+        />
       </div>
 
       <div>

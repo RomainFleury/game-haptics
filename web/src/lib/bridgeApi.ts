@@ -504,6 +504,8 @@ declare global {
       pistolwhipCheckModInstalled: () => Promise<{
         success: boolean;
         installed?: boolean;
+        dllInstalled?: boolean;
+        melonLoaderInstalled?: boolean;
         sourceAvailable?: boolean;
         missingFiles?: string[];
         gameDir?: string;
@@ -513,6 +515,7 @@ declare global {
         success: boolean;
         copiedFiles?: string[];
         destination?: string;
+        warning?: string;
         error?: string;
       }>;
       battlesisterStart: () => Promise<{ success: boolean; error?: string }>;
@@ -549,6 +552,8 @@ declare global {
       battlesisterCheckModInstalled: () => Promise<{
         success: boolean;
         installed?: boolean;
+        dllInstalled?: boolean;
+        melonLoaderInstalled?: boolean;
         sourceAvailable?: boolean;
         missingFiles?: string[];
         gameDir?: string;
@@ -558,6 +563,7 @@ declare global {
         success: boolean;
         copiedFiles?: string[];
         destination?: string;
+        warning?: string;
         error?: string;
       }>;
       gunmancontractsStart: () => Promise<{ success: boolean; error?: string }>;
@@ -1102,6 +1108,8 @@ export async function pistolwhipGetGameDir(): Promise<{
 export async function pistolwhipCheckModInstalled(): Promise<{
   success: boolean;
   installed?: boolean;
+  dllInstalled?: boolean;
+  melonLoaderInstalled?: boolean;
   sourceAvailable?: boolean;
   missingFiles?: string[];
   gameDir?: string;
@@ -1114,6 +1122,7 @@ export async function pistolwhipInstallMod(): Promise<{
   success: boolean;
   copiedFiles?: string[];
   destination?: string;
+  warning?: string;
   error?: string;
 }> {
   return await ensureBridge().pistolwhipInstallMod();
@@ -1172,6 +1181,8 @@ export async function battlesisterBrowseGameDir(): Promise<{
 export async function battlesisterCheckModInstalled(): Promise<{
   success: boolean;
   installed?: boolean;
+  dllInstalled?: boolean;
+  melonLoaderInstalled?: boolean;
   sourceAvailable?: boolean;
   missingFiles?: string[];
   gameDir?: string;
@@ -1184,6 +1195,7 @@ export async function battlesisterInstallMod(): Promise<{
   success: boolean;
   copiedFiles?: string[];
   destination?: string;
+  warning?: string;
   error?: string;
 }> {
   return await ensureBridge().battlesisterInstallMod();

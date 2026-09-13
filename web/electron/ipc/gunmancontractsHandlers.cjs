@@ -12,6 +12,7 @@ const fs = require("fs");
 const { spawnSync } = require("child_process");
 const { getDaemonBridge } = require("../daemonBridge.cjs");
 const gunmancontractsStorage = require("../gunmancontractsStorage.cjs");
+const { detectMelonLoader, MELON_MISSING_WARNING } = require("../melonLoaderDetect.cjs");
 
 const IS_PACKAGED = !process.env.VITE_DEV_SERVER_URL;
 const MOD_DLL = "ThirdSpace_GunmanContracts.dll";
@@ -52,25 +53,6 @@ function getModSourcePath() {
 
 function modsFolder(gameDir) {
   return path.join(gameDir, "Mods");
-}
-
-/**
- * MelonLoader must inject into the game for Mods/*.dll to load.
- * Without it, our DLL can sit in Mods/ and never run.
- */
-function detectMelonLoader(gameDir) {
-  const melonDir = path.join(gameDir, "MelonLoader");
-  const proxies = ["version.dll", "winhttp.dll", "winmm.dll", "dinput8.dll"];
-  const hasMelonDir = fs.existsSync(melonDir);
-  const hasProxy = proxies.some((name) => fs.existsSync(path.join(gameDir, name)));
-  const hasDoorstop = fs.existsSync(path.join(gameDir, "doorstop_config.ini"));
-  const installed = hasMelonDir || hasProxy || hasDoorstop;
-  return {
-    installed,
-    hasMelonDir,
-    hasProxy,
-    hasDoorstop,
-  };
 }
 
 function tryBuildMod(gameDir) {
@@ -262,8 +244,7 @@ function registerGunmanContractsHandlers(getMainWindow) {
           success: true,
           copiedFiles: [MOD_DLL],
           destination: destDir,
-          warning:
-            "DLL copied, but MelonLoader is not installed in this folder. Mods will not load until you install MelonLoader 0.6+ and launch the game once.",
+          warning: MELON_MISSING_WARNING,
         };
       }
 

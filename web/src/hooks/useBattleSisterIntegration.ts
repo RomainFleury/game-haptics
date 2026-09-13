@@ -38,6 +38,8 @@ export function useBattleSisterIntegration() {
   const [gameDir, setGameDir] = useState("");
   const [modStatus, setModStatus] = useState<{
     installed: boolean;
+    dllInstalled?: boolean;
+    melonLoaderInstalled?: boolean;
     sourceAvailable?: boolean;
     missingFiles?: string[];
     gameDir?: string;
@@ -76,6 +78,8 @@ export function useBattleSisterIntegration() {
       if (result.success) {
         setModStatus({
           installed: Boolean(result.installed),
+          dllInstalled: Boolean(result.dllInstalled ?? result.installed),
+          melonLoaderInstalled: Boolean(result.melonLoaderInstalled),
           sourceAvailable: result.sourceAvailable,
           missingFiles: result.missingFiles,
           gameDir: result.gameDir,
@@ -105,7 +109,11 @@ export function useBattleSisterIntegration() {
       const result = await battlesisterInstallMod();
       if (result.success) {
         await checkModInstalled();
-        return { success: true, copiedFiles: result.copiedFiles };
+        return {
+          success: true,
+          copiedFiles: result.copiedFiles,
+          warning: result.warning,
+        };
       }
       setError(result.error || "Failed to install Battle Sister mod");
       return { success: false, error: result.error };

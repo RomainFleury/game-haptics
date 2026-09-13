@@ -14,6 +14,7 @@ const fs = require("fs");
 const { spawnSync } = require("child_process");
 const { getDaemonBridge } = require("../daemonBridge.cjs");
 const pistolwhipStorage = require("../pistolwhipStorage.cjs");
+const { detectMelonLoader, MELON_MISSING_WARNING } = require("../melonLoaderDetect.cjs");
 
 const IS_PACKAGED = !process.env.VITE_DEV_SERVER_URL;
 const MOD_DLL = "ThirdSpace_PistolWhip.dll";
@@ -181,11 +182,15 @@ function registerPistolWhipHandlers(getMainWindow) {
       const destPath = path.join(modsFolder(gameDir), MOD_DLL);
       const sourceDir = getModSourcePath();
       const sourcePath = path.join(sourceDir, MOD_DLL);
+      const dllInstalled = fs.existsSync(destPath);
+      const melon = detectMelonLoader(gameDir);
       return {
         success: true,
-        installed: fs.existsSync(destPath),
+        installed: dllInstalled && melon.installed,
+        dllInstalled,
+        melonLoaderInstalled: melon.installed,
         sourceAvailable: fs.existsSync(sourcePath),
-        missingFiles: fs.existsSync(destPath) ? [] : [MOD_DLL],
+        missingFiles: dllInstalled ? [] : [MOD_DLL],
         gameDir,
       };
     } catch (error) {
@@ -234,6 +239,16 @@ function registerPistolWhipHandlers(getMainWindow) {
       const destPath = path.join(destDir, MOD_DLL);
       fs.copyFileSync(sourcePath, destPath);
       console.log(`[pistolwhip] Copied ${MOD_DLL} -> ${destPath}`);
+
+      const melon = detectMelonLoader(gameDir);
+      if (!melon.installed) {
+        return {
+          success: true,
+          copiedFiles: [MOD_DLL],
+          destination: destDir,
+          warning: MELON_MISSING_WARNING,
+        };
+      }
 
       return {
         success: true,

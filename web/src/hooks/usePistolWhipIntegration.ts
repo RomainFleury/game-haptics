@@ -38,6 +38,8 @@ export function usePistolWhipIntegration() {
   const [gameDir, setGameDir] = useState("");
   const [modStatus, setModStatus] = useState<{
     installed: boolean;
+    dllInstalled?: boolean;
+    melonLoaderInstalled?: boolean;
     sourceAvailable?: boolean;
     missingFiles?: string[];
     gameDir?: string;
@@ -80,6 +82,8 @@ export function usePistolWhipIntegration() {
       if (result.success) {
         setModStatus({
           installed: Boolean(result.installed),
+          dllInstalled: Boolean(result.dllInstalled ?? result.installed),
+          melonLoaderInstalled: Boolean(result.melonLoaderInstalled),
           sourceAvailable: result.sourceAvailable,
           missingFiles: result.missingFiles,
           gameDir: result.gameDir,
@@ -109,7 +113,11 @@ export function usePistolWhipIntegration() {
       const result = await pistolwhipInstallMod();
       if (result.success) {
         await checkModInstalled();
-        return { success: true, copiedFiles: result.copiedFiles };
+        return {
+          success: true,
+          copiedFiles: result.copiedFiles,
+          warning: result.warning,
+        };
       }
       setError(result.error || "Failed to install Pistol Whip mod");
       return { success: false, error: result.error };
