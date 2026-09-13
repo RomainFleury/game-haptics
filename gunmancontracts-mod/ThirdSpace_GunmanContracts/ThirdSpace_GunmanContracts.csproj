@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+    <GunmanContractsDir Condition="'$(GunmanContractsDir)' == ''"></GunmanContractsDir>
+    <PistolWhipDir Condition="'$(PistolWhipDir)' == ''"></PistolWhipDir>
+    <MelonNet6 Condition="'$(GunmanContractsDir)' != ''">$(GunmanContractsDir)\MelonLoader\net6</MelonNet6>
+    <MelonNet6 Condition="'$(MelonNet6)' == '' And '$(PistolWhipDir)' != ''">$(PistolWhipDir)\MelonLoader\net6</MelonNet6>
+    <MelonNet6 Condition="'$(MelonNet6)' == ''">..\libs</MelonNet6>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <OutputPath>bin\Debug\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <OutputPath>bin\Release\</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="MelonLoader">
+      <HintPath>$(MelonNet6)\MelonLoader.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(MelonNet6)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

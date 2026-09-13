@@ -34,6 +34,15 @@ function isLikelyRelayPort(port: RelayPortInfo): boolean {
   return blob.includes("ch340") || blob.includes("ch341") || blob.includes("wch.cn");
 }
 
+function isPortAccessDeniedError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("access is denied") ||
+    lower.includes("permissionerror") ||
+    lower.includes("permission denied")
+  );
+}
+
 function pickPreferredPort(ports: RelayPortInfo[], current: string): string {
   // Keep current only if it's already a likely LC relay (or the only choice)
   if (current) {
@@ -396,6 +405,25 @@ export function RecoilPage() {
             </button>
           )}
         </div>
+
+        {(message || error) && (
+          <div
+            className={`rounded-xl px-4 py-3 text-sm space-y-1.5 ${
+              error
+                ? "bg-rose-500/10 text-rose-300 ring-1 ring-rose-500/30"
+                : "bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/30"
+            }`}
+          >
+            <p>{error || message}</p>
+            {error && isPortAccessDeniedError(error) && (
+              <p className="text-rose-200/80 text-xs leading-relaxed">
+                Some software is known to lock USB/COM ports — SignalRGB is a common
+                culprit. Quit it (or anything else using the port), then try Connect
+                again.
+              </p>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="rounded-2xl bg-slate-800/80 p-4 md:p-5 shadow-lg ring-1 ring-white/5 space-y-4">
@@ -608,18 +636,6 @@ export function RecoilPage() {
           </p>
         )}
       </section>
-
-      {(message || error) && (
-        <div
-          className={`rounded-xl px-4 py-3 text-sm ${
-            error
-              ? "bg-rose-500/10 text-rose-300 ring-1 ring-rose-500/30"
-              : "bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500/30"
-          }`}
-        >
-          {error || message}
-        </div>
-      )}
 
       <section className="rounded-2xl bg-slate-900/60 p-4 text-sm text-slate-400 ring-1 ring-white/5 space-y-2">
         <p className="font-medium text-slate-300">Protocol (9600 baud)</p>

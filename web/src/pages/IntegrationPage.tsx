@@ -5,6 +5,7 @@ import {
   L4D2IntegrationPage,
   PistolWhipIntegrationPage,
   BattleSisterIntegrationPage,
+  GunmanContractsIntegrationPage,
   ScreenHealthIntegrationPage,
   ScreenHealthBuilderPage,
   ScreenHealthSettingsPage,
@@ -20,6 +21,7 @@ const INTEGRATION_PAGES: Record<string, React.ComponentType> = {
   l4d2: L4D2IntegrationPage,
   pistolwhip: PistolWhipIntegrationPage,
   battlesister: BattleSisterIntegrationPage,
+  gunmancontracts: GunmanContractsIntegrationPage,
   screen_health: ScreenHealthIntegrationPage,
 };
 

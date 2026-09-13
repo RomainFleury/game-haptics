@@ -1,20 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  pistolwhipStart,
-  pistolwhipStop,
-  pistolwhipStatus,
-  pistolwhipGetSettings,
-  pistolwhipSetSolenoidRecoil,
-  pistolwhipBrowseGameDir,
-  pistolwhipCheckModInstalled,
-  pistolwhipInstallMod,
+  gunmancontractsStart,
+  gunmancontractsStop,
+  gunmancontractsStatus,
+  gunmancontractsGetSettings,
+  gunmancontractsSetSolenoidRecoil,
+  gunmancontractsBrowseGameDir,
+  gunmancontractsCheckModInstalled,
+  gunmancontractsInstallMod,
   subscribeToDaemonEvents,
-  PistolWhipStatus,
+  GunmanContractsStatus,
   DaemonEvent,
   SolenoidRecoilSettings,
 } from "../lib/bridgeApi";
 
-export type PistolWhipGameEvent = {
+export type GunmanContractsGameEvent = {
   id: string;
   type: string;
   ts: number;
@@ -24,8 +24,8 @@ export type PistolWhipGameEvent = {
 const MAX_EVENTS = 50;
 const DEFAULT_SOLENOID: SolenoidRecoilSettings = { enabled: true, durationMs: 40 };
 
-export function usePistolWhipIntegration() {
-  const [status, setStatus] = useState<PistolWhipStatus>({
+export function useGunmanContractsIntegration() {
+  const [status, setStatus] = useState<GunmanContractsStatus>({
     running: false,
     events_received: 0,
     last_event_ts: null,
@@ -33,7 +33,7 @@ export function usePistolWhipIntegration() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [gameEvents, setGameEvents] = useState<PistolWhipGameEvent[]>([]);
+  const [gameEvents, setGameEvents] = useState<GunmanContractsGameEvent[]>([]);
   const [solenoidRecoil, setSolenoidRecoil] = useState<SolenoidRecoilSettings>(DEFAULT_SOLENOID);
   const [gameDir, setGameDir] = useState("");
   const [modStatus, setModStatus] = useState<{
@@ -48,7 +48,7 @@ export function usePistolWhipIntegration() {
 
   const fetchStatus = useCallback(async (preserveError = false) => {
     try {
-      const result = await pistolwhipStatus();
+      const result = await gunmancontractsStatus();
       setStatus(result);
       if (!preserveError) {
         setError(result.error || null);
@@ -62,7 +62,7 @@ export function usePistolWhipIntegration() {
 
   const fetchSettings = useCallback(async () => {
     try {
-      const result = await pistolwhipGetSettings();
+      const result = await gunmancontractsGetSettings();
       if (result.success) {
         if (result.solenoidRecoil) {
           setSolenoidRecoil(result.solenoidRecoil);
@@ -72,13 +72,13 @@ export function usePistolWhipIntegration() {
         }
       }
     } catch (err) {
-      console.error("Failed to load Pistol Whip settings:", err);
+      console.error("Failed to load Gunman Contracts settings:", err);
     }
   }, []);
 
   const checkModInstalled = useCallback(async () => {
     try {
-      const result = await pistolwhipCheckModInstalled();
+      const result = await gunmancontractsCheckModInstalled();
       if (result.success) {
         setModStatus({
           installed: Boolean(result.installed),
@@ -90,19 +90,19 @@ export function usePistolWhipIntegration() {
         });
       }
     } catch (err) {
-      console.error("Failed to check Pistol Whip mod status:", err);
+      console.error("Failed to check Gunman Contracts mod status:", err);
     }
   }, []);
 
   const browseGameDir = useCallback(async () => {
     try {
-      const result = await pistolwhipBrowseGameDir();
+      const result = await gunmancontractsBrowseGameDir();
       if (result.success && result.gameDir) {
         setGameDir(result.gameDir);
         await checkModInstalled();
       }
     } catch (err) {
-      console.error("Failed to browse Pistol Whip game dir:", err);
+      console.error("Failed to browse Gunman Contracts game dir:", err);
     }
   }, [checkModInstalled]);
 
@@ -110,7 +110,7 @@ export function usePistolWhipIntegration() {
     setLoading(true);
     setError(null);
     try {
-      const result = await pistolwhipInstallMod();
+      const result = await gunmancontractsInstallMod();
       if (result.success) {
         await checkModInstalled();
         return {
@@ -119,10 +119,10 @@ export function usePistolWhipIntegration() {
           warning: result.warning,
         };
       }
-      setError(result.error || "Failed to install Pistol Whip mod");
+      setError(result.error || "Failed to install Gunman Contracts mod");
       return { success: false, error: result.error };
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to install Pistol Whip mod";
+      const message = err instanceof Error ? err.message : "Failed to install Gunman Contracts mod";
       setError(message);
       return { success: false, error: message };
     } finally {
@@ -134,14 +134,14 @@ export function usePistolWhipIntegration() {
     setLoading(true);
     setError(null);
     try {
-      const result = await pistolwhipStart();
+      const result = await gunmancontractsStart();
       if (result.success) {
         await fetchStatus(true);
       } else {
-        setError(result.error || "Failed to start Pistol Whip integration");
+        setError(result.error || "Failed to start Gunman Contracts integration");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start Pistol Whip integration");
+      setError(err instanceof Error ? err.message : "Failed to start Gunman Contracts integration");
     } finally {
       setLoading(false);
     }
@@ -151,14 +151,14 @@ export function usePistolWhipIntegration() {
     setLoading(true);
     setError(null);
     try {
-      const result = await pistolwhipStop();
+      const result = await gunmancontractsStop();
       if (result.success) {
         await fetchStatus(true);
       } else {
-        setError(result.error || "Failed to stop Pistol Whip integration");
+        setError(result.error || "Failed to stop Gunman Contracts integration");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to stop Pistol Whip integration");
+      setError(err instanceof Error ? err.message : "Failed to stop Gunman Contracts integration");
     } finally {
       setLoading(false);
     }
@@ -173,9 +173,9 @@ export function usePistolWhipIntegration() {
       const next = { ...solenoidRecoil, ...partial };
       setSolenoidRecoil(next);
       try {
-        await pistolwhipSetSolenoidRecoil(next);
+        await gunmancontractsSetSolenoidRecoil(next);
       } catch (err) {
-        console.error("Failed to save Pistol Whip solenoid settings:", err);
+        console.error("Failed to save Gunman Contracts solenoid settings:", err);
       }
     },
     [solenoidRecoil]
@@ -189,10 +189,10 @@ export function usePistolWhipIntegration() {
 
   useEffect(() => {
     const unsubscribe = subscribeToDaemonEvents((event: DaemonEvent) => {
-      if (event.event === "pistolwhip_game_event") {
+      if (event.event === "gunmancontracts_game_event") {
         eventIdCounter.current += 1;
-        const gameEvent: PistolWhipGameEvent = {
-          id: `pistolwhip-${event.ts}-${eventIdCounter.current}`,
+        const gameEvent: GunmanContractsGameEvent = {
+          id: `gunmancontracts-${event.ts}-${eventIdCounter.current}`,
           type: event.event_type || "unknown",
           ts: event.ts || Date.now() / 1000,
           params: {
@@ -202,7 +202,10 @@ export function usePistolWhipIntegration() {
         };
         setGameEvents((prev) => [gameEvent, ...prev].slice(0, MAX_EVENTS));
         fetchStatus(true);
-      } else if (event.event === "pistolwhip_started" || event.event === "pistolwhip_stopped") {
+      } else if (
+        event.event === "gunmancontracts_started" ||
+        event.event === "gunmancontracts_stopped"
+      ) {
         fetchStatus(true);
       }
     });

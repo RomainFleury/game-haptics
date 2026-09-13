@@ -1,11 +1,9 @@
 /**
- * IPC handlers for Pistol Whip integration.
+ * IPC handlers for Gunman Contracts Standalone integration.
  *
- * Installable artifact is ThirdSpace_PistolWhip.dll (TCP client to daemon 5050).
- * The NexusMods dump at
- *   misc-documentations/achived-untested-mods/pistolwhip-mod/bHaptics-nexusmods/
- * is the original PistolWhip_bhaptics.dll used as a Harmony-patch reference only —
- * it talks to bHaptics Player, not this daemon. See the archived README next to it.
+ * Installable artifact is ThirdSpace_GunmanContracts.dll (TCP client to daemon 5050).
+ * Harmony reference: https://github.com/floh-bhaptics/GunmanContracts_bhaptics
+ * Recoil inspiration: https://github.com/Astienth/GunmanContracts_Provolver
  */
 
 const { ipcMain, dialog } = require("electron");
@@ -13,44 +11,44 @@ const path = require("path");
 const fs = require("fs");
 const { spawnSync } = require("child_process");
 const { getDaemonBridge } = require("../daemonBridge.cjs");
-const pistolwhipStorage = require("../pistolwhipStorage.cjs");
+const gunmancontractsStorage = require("../gunmancontractsStorage.cjs");
 const { detectMelonLoader, MELON_MISSING_WARNING } = require("../melonLoaderDetect.cjs");
 
 const IS_PACKAGED = !process.env.VITE_DEV_SERVER_URL;
-const MOD_DLL = "ThirdSpace_PistolWhip.dll";
+const MOD_DLL = "ThirdSpace_GunmanContracts.dll";
 
 function repoRoot() {
   return path.resolve(__dirname, "..", "..", "..");
 }
 
 /**
- * Directory that contains ThirdSpace_PistolWhip.dll.
- * Packaged app: resources/mods/pistolwhip/
- * Dev: mods/pistolwhip/ or a local MSBuild output folder.
+ * Directory that contains ThirdSpace_GunmanContracts.dll.
+ * Packaged app: resources/mods/gunmancontracts/
+ * Dev: mods/gunmancontracts/ or a local MSBuild output folder.
  */
 function getModSourcePath() {
   if (IS_PACKAGED) {
-    const bundledPath = path.join(process.resourcesPath, "mods", "pistolwhip");
+    const bundledPath = path.join(process.resourcesPath, "mods", "gunmancontracts");
     if (fs.existsSync(path.join(bundledPath, MOD_DLL))) {
-      console.log(`[pistolwhip] Using bundled mod: ${bundledPath}`);
+      console.log(`[gunmancontracts] Using bundled mod: ${bundledPath}`);
       return bundledPath;
     }
-    console.warn(`[pistolwhip] Bundled ${MOD_DLL} not found at: ${bundledPath}`);
+    console.warn(`[gunmancontracts] Bundled ${MOD_DLL} not found at: ${bundledPath}`);
   }
 
   const root = repoRoot();
   const candidates = [
-    path.join(root, "mods", "pistolwhip"),
-    path.join(root, "pistolwhip-mod", "ThirdSpace_PistolWhip", "bin", "Release"),
-    path.join(root, "pistolwhip-mod", "ThirdSpace_PistolWhip", "bin", "Debug"),
+    path.join(root, "mods", "gunmancontracts"),
+    path.join(root, "gunmancontracts-mod", "ThirdSpace_GunmanContracts", "bin", "Release"),
+    path.join(root, "gunmancontracts-mod", "ThirdSpace_GunmanContracts", "bin", "Debug"),
   ];
   for (const dir of candidates) {
     if (fs.existsSync(path.join(dir, MOD_DLL))) {
-      console.log(`[pistolwhip] Using mod source: ${dir}`);
+      console.log(`[gunmancontracts] Using mod source: ${dir}`);
       return dir;
     }
   }
-  return path.join(root, "mods", "pistolwhip");
+  return path.join(root, "mods", "gunmancontracts");
 }
 
 function modsFolder(gameDir) {
@@ -58,7 +56,7 @@ function modsFolder(gameDir) {
 }
 
 function tryBuildMod(gameDir) {
-  const script = path.join(repoRoot(), "pistolwhip-mod", "build.ps1");
+  const script = path.join(repoRoot(), "gunmancontracts-mod", "build.ps1");
   if (!fs.existsSync(script)) {
     return { ok: false, error: `Build script not found: ${script}` };
   }
@@ -85,56 +83,55 @@ function tryBuildMod(gameDir) {
   return { ok: true, output };
 }
 
-function registerPistolWhipHandlers(getMainWindow) {
-  ipcMain.handle("pistolwhip:start", async () => {
+function registerGunmanContractsHandlers(getMainWindow) {
+  ipcMain.handle("gunmancontracts:start", async () => {
     const daemon = getDaemonBridge();
-    const solenoid = pistolwhipStorage.getPistolWhipSolenoidRecoil();
-    return await daemon.pistolwhipStart({
+    const solenoid = gunmancontractsStorage.getGunmanContractsSolenoidRecoil();
+    return await daemon.gunmancontractsStart({
       enabled: solenoid.enabled,
       duration_ms: solenoid.durationMs,
     });
   });
 
-  ipcMain.handle("pistolwhip:stop", async () => {
-    const daemon = getDaemonBridge();
-    return await daemon.pistolwhipStop();
+  ipcMain.handle("gunmancontracts:stop", async () => {
+    return await getDaemonBridge().gunmancontractsStop();
   });
 
-  ipcMain.handle("pistolwhip:status", async () => {
-    const daemon = getDaemonBridge();
-    return await daemon.pistolwhipStatus();
+  ipcMain.handle("gunmancontracts:status", async () => {
+    return await getDaemonBridge().gunmancontractsStatus();
   });
 
-  ipcMain.handle("pistolwhip:getSettings", async () => {
+  ipcMain.handle("gunmancontracts:getSettings", async () => {
     try {
       return {
         success: true,
-        gameDir: pistolwhipStorage.getPistolWhipGameDir(),
-        solenoidRecoil: pistolwhipStorage.getPistolWhipSolenoidRecoil(),
+        gameDir: gunmancontractsStorage.getGunmanContractsGameDir(),
+        solenoidRecoil: gunmancontractsStorage.getGunmanContractsSolenoidRecoil(),
       };
     } catch (error) {
-      console.error("Error in pistolwhip:getSettings:", error);
+      console.error("Error in gunmancontracts:getSettings:", error);
       return { success: false, error: error.message };
     }
   });
 
-  ipcMain.handle("pistolwhip:setSolenoidRecoil", async (_, solenoidRecoil) => {
+  ipcMain.handle("gunmancontracts:setSolenoidRecoil", async (_, solenoidRecoil) => {
     try {
-      const saved = pistolwhipStorage.setPistolWhipSolenoidRecoil(solenoidRecoil || {});
+      const saved = gunmancontractsStorage.setGunmanContractsSolenoidRecoil(solenoidRecoil || {});
       return { success: true, solenoidRecoil: saved };
     } catch (error) {
-      console.error("Error in pistolwhip:setSolenoidRecoil:", error);
+      console.error("Error in gunmancontracts:setSolenoidRecoil:", error);
       return { success: false, error: error.message };
     }
   });
 
-  ipcMain.handle("pistolwhip:browseGameDir", async () => {
+  ipcMain.handle("gunmancontracts:browseGameDir", async () => {
     try {
       const mainWindow = getMainWindow();
       const result = await dialog.showOpenDialog(mainWindow, {
-        title: "Select Pistol Whip Game Directory",
+        title: "Select Gunman Contracts Game Directory",
         properties: ["openDirectory"],
-        message: "Select the Pistol Whip folder (the one that contains Pistol Whip.exe after MelonLoader is installed)",
+        message:
+          "Select the Gunman Contracts Standalone folder (MelonLoader creates Mods/ here after first launch)",
       });
 
       if (result.canceled || result.filePaths.length === 0) {
@@ -142,39 +139,39 @@ function registerPistolWhipHandlers(getMainWindow) {
       }
 
       const selectedPath = result.filePaths[0];
-      pistolwhipStorage.setPistolWhipGameDir(selectedPath);
+      gunmancontractsStorage.setGunmanContractsGameDir(selectedPath);
       return { success: true, gameDir: selectedPath };
     } catch (error) {
-      console.error("Error in pistolwhip:browseGameDir:", error);
+      console.error("Error in gunmancontracts:browseGameDir:", error);
       return { success: false, error: error.message };
     }
   });
 
-  ipcMain.handle("pistolwhip:getGameDir", async () => {
+  ipcMain.handle("gunmancontracts:getGameDir", async () => {
     try {
       return {
         success: true,
-        gameDir: pistolwhipStorage.getPistolWhipGameDir(),
+        gameDir: gunmancontractsStorage.getGunmanContractsGameDir(),
       };
     } catch (error) {
-      console.error("Error in pistolwhip:getGameDir:", error);
+      console.error("Error in gunmancontracts:getGameDir:", error);
       return { success: false, error: error.message };
     }
   });
 
-  ipcMain.handle("pistolwhip:setGameDir", async (_, gameDir) => {
+  ipcMain.handle("gunmancontracts:setGameDir", async (_, gameDir) => {
     try {
-      pistolwhipStorage.setPistolWhipGameDir(gameDir || null);
+      gunmancontractsStorage.setGunmanContractsGameDir(gameDir || null);
       return { success: true };
     } catch (error) {
-      console.error("Error in pistolwhip:setGameDir:", error);
+      console.error("Error in gunmancontracts:setGameDir:", error);
       return { success: false, error: error.message };
     }
   });
 
-  ipcMain.handle("pistolwhip:checkModInstalled", async () => {
+  ipcMain.handle("gunmancontracts:checkModInstalled", async () => {
     try {
-      const gameDir = pistolwhipStorage.getPistolWhipGameDir();
+      const gameDir = gunmancontractsStorage.getGunmanContractsGameDir();
       if (!gameDir) {
         return { success: true, installed: false, reason: "Game directory not set" };
       }
@@ -186,6 +183,7 @@ function registerPistolWhipHandlers(getMainWindow) {
       const melon = detectMelonLoader(gameDir);
       return {
         success: true,
+        // Fully ready only when MelonLoader can load the DLL
         installed: dllInstalled && melon.installed,
         dllInstalled,
         melonLoaderInstalled: melon.installed,
@@ -194,18 +192,18 @@ function registerPistolWhipHandlers(getMainWindow) {
         gameDir,
       };
     } catch (error) {
-      console.error("Error in pistolwhip:checkModInstalled:", error);
+      console.error("Error in gunmancontracts:checkModInstalled:", error);
       return { success: false, error: error.message };
     }
   });
 
-  ipcMain.handle("pistolwhip:installMod", async () => {
+  ipcMain.handle("gunmancontracts:installMod", async () => {
     try {
-      const gameDir = pistolwhipStorage.getPistolWhipGameDir();
+      const gameDir = gunmancontractsStorage.getGunmanContractsGameDir();
       if (!gameDir) {
         return {
           success: false,
-          error: "Game directory not set. Select your Pistol Whip folder first.",
+          error: "Game directory not set. Select your Gunman Contracts folder first.",
         };
       }
 
@@ -217,7 +215,7 @@ function registerPistolWhipHandlers(getMainWindow) {
           const melonNet6 = path.join(gameDir, "MelonLoader", "net6", "MelonLoader.dll");
           const melonHint = fs.existsSync(melonNet6)
             ? "Install the .NET 6 or 8 SDK, then click Install Mod again."
-            : "Install MelonLoader 0.6+ into this Pistol Whip folder, launch the game once, then click Install Mod again.";
+            : "Install MelonLoader 0.6+ into this Gunman Contracts folder, launch the game once, then click Install Mod again.";
           return {
             success: false,
             error: `Could not build ${MOD_DLL}. ${melonHint} ${built.error}`,
@@ -229,8 +227,8 @@ function registerPistolWhipHandlers(getMainWindow) {
         return {
           success: false,
           error:
-            `${MOD_DLL} is still missing after the build. Check pistolwhip-mod/build.ps1 output. ` +
-            `Do not install PistolWhip_bhaptics.dll — that NexusMods file talks to bHaptics Player, not this daemon.`,
+            `${MOD_DLL} is still missing after the build. Check gunmancontracts-mod/build.ps1. ` +
+            `Do not install GunmanContracts_bhaptics.dll — that file talks to bHaptics Player, not this daemon.`,
         };
       }
 
@@ -238,7 +236,7 @@ function registerPistolWhipHandlers(getMainWindow) {
       fs.mkdirSync(destDir, { recursive: true });
       const destPath = path.join(destDir, MOD_DLL);
       fs.copyFileSync(sourcePath, destPath);
-      console.log(`[pistolwhip] Copied ${MOD_DLL} -> ${destPath}`);
+      console.log(`[gunmancontracts] Copied ${MOD_DLL} -> ${destPath}`);
 
       const melon = detectMelonLoader(gameDir);
       if (!melon.installed) {
@@ -256,10 +254,10 @@ function registerPistolWhipHandlers(getMainWindow) {
         destination: destDir,
       };
     } catch (error) {
-      console.error("Error in pistolwhip:installMod:", error);
+      console.error("Error in gunmancontracts:installMod:", error);
       return { success: false, error: error.message };
     }
   });
 }
 
-module.exports = { registerPistolWhipHandlers };
+module.exports = { registerGunmanContractsHandlers };

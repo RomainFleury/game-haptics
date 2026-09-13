@@ -68,6 +68,17 @@ export const integratedGames: IntegratedGameConfig[] = [
     requiresMod: true,
     tags: ["vr", "fps", "warhammer", "beta"],
   },
+  {
+    id: "gunmancontracts",
+    name: "Gunman Contracts Standalone",
+    description: "VR shooter haptics via MelonLoader TCP events",
+    icon: "🤠",
+    steamAppId: 2421750,
+    hasConfiguration: true,
+    hasSetupGuide: true,
+    requiresMod: true,
+    tags: ["vr", "fps", "western", "beta"],
+  },
 ];
 
 /**
