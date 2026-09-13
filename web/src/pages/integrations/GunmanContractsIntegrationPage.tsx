@@ -45,6 +45,7 @@ export function GunmanContractsIntegrationPage() {
     modStatus,
     browseGameDir,
     installMod,
+    checkModInstalled,
     start,
     stop,
     clearEvents,
@@ -107,6 +108,7 @@ export function GunmanContractsIntegrationPage() {
           loading={loading}
           installMessage={installMessage}
           onInstall={() => void handleInstallMod()}
+          onRecheck={checkModInstalled}
         />
       </div>
 

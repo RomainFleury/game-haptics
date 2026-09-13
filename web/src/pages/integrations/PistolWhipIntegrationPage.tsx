@@ -43,6 +43,7 @@ export function PistolWhipIntegrationPage() {
     modStatus,
     browseGameDir,
     installMod,
+    checkModInstalled,
     start,
     stop,
     clearEvents,
@@ -108,6 +109,7 @@ export function PistolWhipIntegrationPage() {
           loading={loading}
           installMessage={installMessage}
           onInstall={() => void handleInstallMod()}
+          onRecheck={checkModInstalled}
         />
       </div>
 

@@ -43,6 +43,7 @@ export function BattleSisterIntegrationPage() {
     modStatus,
     browseGameDir,
     installMod,
+    checkModInstalled,
     start,
     stop,
     clearEvents,
@@ -104,6 +105,7 @@ export function BattleSisterIntegrationPage() {
           loading={loading}
           installMessage={installMessage}
           onInstall={() => void handleInstallMod()}
+          onRecheck={checkModInstalled}
         />
       </div>
 

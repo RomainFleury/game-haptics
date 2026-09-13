@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 type MelonModStatus = {
   dllInstalled?: boolean;
   melonLoaderInstalled?: boolean;
@@ -12,6 +14,8 @@ type Props = {
   loading: boolean;
   installMessage: string | null;
   onInstall: () => void;
+  /** Re-scan game folder for MelonLoader + mod DLL (e.g. after installing MelonLoader). */
+  onRecheck: () => Promise<void> | void;
 };
 
 /**
@@ -24,14 +28,34 @@ export function MelonModInstallStatus({
   loading,
   installMessage,
   onInstall,
+  onRecheck,
 }: Props) {
+  const [rechecking, setRechecking] = useState(false);
+  const [recheckMessage, setRecheckMessage] = useState<string | null>(null);
   const dllInstalled = Boolean(modStatus.dllInstalled ?? modStatus.installed);
   const melonLoaderInstalled = Boolean(modStatus.melonLoaderInstalled);
+  const busy = loading || rechecking;
+
+  const handleRecheck = async () => {
+    if (!gameDir || busy) return;
+    setRechecking(true);
+    setRecheckMessage(null);
+    try {
+      await onRecheck();
+      setRecheckMessage("✓ Config rechecked");
+    } catch (err) {
+      setRecheckMessage(
+        `✗ Recheck failed: ${err instanceof Error ? err.message : String(err)}`
+      );
+    } finally {
+      setRechecking(false);
+    }
+  };
 
   return (
     <>
-      <div className="flex items-center justify-between mb-3">
-        <div className="text-sm space-y-1">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="text-sm space-y-1 min-w-0">
           {!gameDir ? (
             <span className="text-slate-500">Select game directory first</span>
           ) : (
@@ -55,14 +79,24 @@ export function MelonModInstallStatus({
             </>
           )}
         </div>
-        <button
-          type="button"
-          onClick={onInstall}
-          disabled={loading || !gameDir}
-          className="rounded-lg bg-blue-600/80 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {dllInstalled ? "Reinstall Mod" : "Install Mod"}
-        </button>
+        <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => void handleRecheck()}
+            disabled={busy || !gameDir}
+            className="rounded-lg border border-slate-500 px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {rechecking ? "Rechecking…" : "Recheck"}
+          </button>
+          <button
+            type="button"
+            onClick={onInstall}
+            disabled={busy || !gameDir}
+            className="rounded-lg bg-blue-600/80 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {dllInstalled ? "Reinstall Mod" : "Install Mod"}
+          </button>
+        </div>
       </div>
       {gameDir && !melonLoaderInstalled && (
         <p className="text-xs text-rose-300/90 mb-2 rounded-lg bg-rose-500/10 ring-1 ring-rose-500/20 px-3 py-2">
@@ -76,21 +110,23 @@ export function MelonModInstallStatus({
             MelonLoader 0.6+
           </a>{" "}
           into this game folder, launch once so it creates{" "}
-          <code className="bg-slate-800 px-1 rounded">MelonLoader/</code>, then relaunch the game.
-          The in-game “cheats” watermark alone does not mean MelonLoader is installed.
+          <code className="bg-slate-800 px-1 rounded">MelonLoader/</code>, then click{" "}
+          <strong className="text-rose-200">Recheck</strong>. The in-game “cheats” watermark alone
+          does not mean MelonLoader is installed.
         </p>
       )}
-      {installMessage && (
+      {(recheckMessage || installMessage) && (
         <p
           className={`text-xs mt-2 ${
-            installMessage.startsWith("✓") && !installMessage.includes("MelonLoader is missing")
+            (recheckMessage || installMessage || "").startsWith("✓") &&
+            !(recheckMessage || installMessage || "").includes("MelonLoader is missing")
               ? "text-emerald-400"
-              : installMessage.startsWith("✓")
+              : (recheckMessage || installMessage || "").startsWith("✓")
                 ? "text-amber-300"
                 : "text-red-400"
           }`}
         >
-          {installMessage}
+          {recheckMessage || installMessage}
         </p>
       )}
     </>
