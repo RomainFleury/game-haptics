@@ -83,7 +83,8 @@ win:
       arch:
         - x64
   # Icon for Windows executable and installer
-  icon: build/icon.png
+  # web/build/ is gitignored; icons live under public/
+  icon: public/icon.ico
   # Request admin rights if needed for USB access
   requestedExecutionLevel: asInvoker
   # Disable code signing / exe editing (avoids winCodeSign symlink privilege errors on Windows)
