@@ -75,6 +75,11 @@ class CommandType(Enum):
     BATTLESISTER_STOP = "battlesister_stop"
     BATTLESISTER_STATUS = "battlesister_status"
     BATTLESISTER_EVENT = "battlesister_event"
+    # Gunman Contracts Standalone (MelonLoader TCP client)
+    GUNMANCONTRACTS_START = "gunmancontracts_start"
+    GUNMANCONTRACTS_STOP = "gunmancontracts_stop"
+    GUNMANCONTRACTS_STATUS = "gunmancontracts_status"
+    GUNMANCONTRACTS_EVENT = "gunmancontracts_event"
     # Generic Screen Health Watcher (screen capture)
     SCREEN_HEALTH_START = "screen_health_start"
     SCREEN_HEALTH_STOP = "screen_health_stop"
@@ -149,6 +154,10 @@ class EventType(Enum):
     BATTLESISTER_STARTED = "battlesister_started"
     BATTLESISTER_STOPPED = "battlesister_stopped"
     BATTLESISTER_GAME_EVENT = "battlesister_game_event"
+    # Gunman Contracts Standalone
+    GUNMANCONTRACTS_STARTED = "gunmancontracts_started"
+    GUNMANCONTRACTS_STOPPED = "gunmancontracts_stopped"
+    GUNMANCONTRACTS_GAME_EVENT = "gunmancontracts_game_event"
     # Generic Screen Health Watcher (screen capture)
     SCREEN_HEALTH_STARTED = "screen_health_started"
     SCREEN_HEALTH_STOPPED = "screen_health_stopped"
@@ -199,6 +208,8 @@ class Command:
     hand: Optional[str] = None   # "left" or "right" for hand-specific events
     priority: Optional[int] = None
     angle: Optional[float] = None  # Damage angle in degrees
+    weapon: Optional[str] = None  # Optional weapon class (pistol/shotgun/rifle/…)
+    holster: Optional[str] = None  # Optional holster slot ("hip" | "shoulder")
     damage: Optional[float] = None  # Damage amount
     health_remaining: Optional[float] = None  # Remaining health
     cause: Optional[str] = None  # Death cause
@@ -248,6 +259,8 @@ class Command:
             hand=data.get("hand"),
             priority=data.get("priority"),
             angle=data.get("angle"),
+            weapon=data.get("weapon"),
+            holster=data.get("holster"),
             damage=data.get("damage"),
             health_remaining=data.get("health_remaining"),
             cause=data.get("cause"),
@@ -1075,6 +1088,77 @@ def response_battlesister_event(
 ) -> Response:
     return Response(
         response="battlesister_event",
+        req_id=req_id,
+        success=success,
+        message=error,
+    )
+
+
+def event_gunmancontracts_started() -> Event:
+    return Event(event=EventType.GUNMANCONTRACTS_STARTED.value)
+
+
+def event_gunmancontracts_stopped() -> Event:
+    return Event(event=EventType.GUNMANCONTRACTS_STOPPED.value)
+
+
+def event_gunmancontracts_game_event(
+    event_type: str,
+    params: Optional[Dict[str, Any]] = None,
+) -> Event:
+    return Event(
+        event=EventType.GUNMANCONTRACTS_GAME_EVENT.value,
+        event_type=event_type,
+        params=params,
+        hand=(params or {}).get("hand"),
+    )
+
+
+def response_gunmancontracts_start(
+    success: bool,
+    error: Optional[str] = None,
+    req_id: Optional[str] = None,
+) -> Response:
+    return Response(
+        response="gunmancontracts_start",
+        req_id=req_id,
+        success=success,
+        message=error,
+    )
+
+
+def response_gunmancontracts_stop(success: bool, req_id: Optional[str] = None) -> Response:
+    return Response(
+        response="gunmancontracts_stop",
+        req_id=req_id,
+        success=success,
+    )
+
+
+def response_gunmancontracts_status(
+    running: bool,
+    events_received: int = 0,
+    last_event_ts: Optional[float] = None,
+    last_event_type: Optional[str] = None,
+    req_id: Optional[str] = None,
+) -> Response:
+    return Response(
+        response="gunmancontracts_status",
+        req_id=req_id,
+        running=running,
+        events_received=events_received,
+        last_event_ts=last_event_ts,
+        last_event_type=last_event_type,
+    )
+
+
+def response_gunmancontracts_event(
+    success: bool,
+    error: Optional[str] = None,
+    req_id: Optional[str] = None,
+) -> Response:
+    return Response(
+        response="gunmancontracts_event",
         req_id=req_id,
         success=success,
         message=error,

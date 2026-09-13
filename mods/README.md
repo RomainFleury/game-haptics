@@ -12,7 +12,9 @@ mods/
 │   └── (Copied from misc-documentations during build)
 ├── pistolwhip/            # Pistol Whip MelonLoader README (build DLL from pistolwhip-mod/)
 │   └── README.md
-└── battlesister/          # Battle Sister MelonLoader README (build DLL from battlesister-mod/)
+├── battlesister/          # Battle Sister MelonLoader README (build DLL from battlesister-mod/)
+│   └── README.md
+└── gunmancontracts/       # Gunman Contracts MelonLoader README (build DLL from gunmancontracts-mod/)
     └── README.md
 ```
 

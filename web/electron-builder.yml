@@ -61,6 +61,13 @@ extraResources:
       - "*.dll"
       - "README.md"
 
+  # Gunman Contracts MelonLoader DLL (built ThirdSpace_GunmanContracts.dll, plus README)
+  - from: "../mods/gunmancontracts/"
+    to: "mods/gunmancontracts/"
+    filter:
+      - "*.dll"
+      - "README.md"
+
 # Don't pack into asar (easier debugging, daemon access)
 asar: true
 asarUnpack:

@@ -104,6 +104,18 @@ contextBridge.exposeInMainWorld("vestBridge", {
   battlesisterCheckModInstalled: () => ipcRenderer.invoke("battlesister:checkModInstalled"),
   battlesisterInstallMod: () => ipcRenderer.invoke("battlesister:installMod"),
 
+  gunmancontractsStart: () => ipcRenderer.invoke("gunmancontracts:start"),
+  gunmancontractsStop: () => ipcRenderer.invoke("gunmancontracts:stop"),
+  gunmancontractsStatus: () => ipcRenderer.invoke("gunmancontracts:status"),
+  gunmancontractsGetSettings: () => ipcRenderer.invoke("gunmancontracts:getSettings"),
+  gunmancontractsSetSolenoidRecoil: (solenoidRecoil) =>
+    ipcRenderer.invoke("gunmancontracts:setSolenoidRecoil", solenoidRecoil),
+  gunmancontractsBrowseGameDir: () => ipcRenderer.invoke("gunmancontracts:browseGameDir"),
+  gunmancontractsGetGameDir: () => ipcRenderer.invoke("gunmancontracts:getGameDir"),
+  gunmancontractsSetGameDir: (gameDir) => ipcRenderer.invoke("gunmancontracts:setGameDir", gameDir),
+  gunmancontractsCheckModInstalled: () => ipcRenderer.invoke("gunmancontracts:checkModInstalled"),
+  gunmancontractsInstallMod: () => ipcRenderer.invoke("gunmancontracts:installMod"),
+
   // Predefined Effects Library API
   playEffect: (effectName) => ipcRenderer.invoke("effects:play", effectName),
   listEffectsLibrary: () => ipcRenderer.invoke("effects:list"),

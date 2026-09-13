@@ -59,6 +59,13 @@ const MOD_CONFIG = {
     targetFolder: "Mods",
     description: "MelonLoader TCP client for Battle Sister haptic feedback",
   },
+  "gunmancontracts": {
+    name: "Gunman Contracts Standalone",
+    directory: "gunmancontracts",
+    files: ["ThirdSpace_GunmanContracts.dll"],
+    targetFolder: "Mods",
+    description: "MelonLoader TCP client for Gunman Contracts haptic feedback",
+  },
 };
 
 function registerModsHandlers(getMainWindow) {

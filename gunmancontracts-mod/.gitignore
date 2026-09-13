@@ -1,0 +1,10 @@
+#
+# Third Space Vest - Gunman Contracts MelonLoader mod
+#
+
+bin/
+obj/
+libs/
+*.user
+*.dll
+!libs/.gitkeep

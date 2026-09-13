@@ -13,6 +13,7 @@ const { registerAlyxHandlers } = require("./alyxHandlers.cjs");
 const { registerL4D2Handlers } = require("./l4d2Handlers.cjs");
 const { registerPistolWhipHandlers } = require("./pistolwhipHandlers.cjs");
 const { registerBattleSisterHandlers } = require("./battlesisterHandlers.cjs");
+const { registerGunmanContractsHandlers } = require("./gunmancontractsHandlers.cjs");
 const { registerEffectsHandlers } = require("./effectsHandlers.cjs");
 const { registerScreenHealthHandlers } = require("./screenHealthHandlers.cjs");
 const { registerMultiVestHandlers } = require("./multiVestHandlers.cjs");
@@ -48,6 +49,9 @@ function registerAllHandlers(getDaemonBridge, getMainWindow, reconnectToDaemon) 
   // Battle Sister integration handlers
   registerBattleSisterHandlers(getMainWindow);
 
+  // Gunman Contracts Standalone integration handlers
+  registerGunmanContractsHandlers(getMainWindow);
+
   // Predefined effects library handlers
   registerEffectsHandlers();
 
@@ -75,6 +79,7 @@ module.exports = {
   registerAlyxHandlers,
   registerPistolWhipHandlers,
   registerBattleSisterHandlers,
+  registerGunmanContractsHandlers,
   registerEffectsHandlers,
   registerScreenHealthHandlers,
   registerRelayHandlers,

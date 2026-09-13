@@ -212,6 +212,30 @@ register_integration(GameIntegrationSpec(
     mod_url="https://github.com/floh-bhaptics/BattleSister_bhaptics",
 ))
 
+# Gunman Contracts Standalone (MelonLoader TCP client)
+register_integration(GameIntegrationSpec(
+    game_id="gunmancontracts",
+    game_name="Gunman Contracts Standalone",
+    integration_type=IntegrationType.TCP_CLIENT,
+    status=IntegrationStatus.BETA,
+    manager_module="gunmancontracts_manager",
+    manager_class="GunmanContractsManager",
+    daemon_commands=[
+        "gunmancontracts_start",
+        "gunmancontracts_stop",
+        "gunmancontracts_status",
+        "gunmancontracts_event",
+    ],
+    event_types=[
+        "gun_fire", "shotgun_fire", "rifle_fire", "bow_fire",
+        "player_hit", "holster_in", "holster_out", "heartbeat",
+    ],
+    has_directional_damage=True,
+    docs_file="docs-external-integrations-ideas/GUNMANCONTRACTS_INTEGRATION.md",
+    requires_external_mod=True,
+    mod_url="https://github.com/floh-bhaptics/GunmanContracts_bhaptics",
+))
+
 # Generic Screen Health Watcher (screen capture)
 register_integration(GameIntegrationSpec(
     game_id="screen_health",

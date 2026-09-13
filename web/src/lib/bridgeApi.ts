@@ -560,6 +560,51 @@ declare global {
         destination?: string;
         error?: string;
       }>;
+      gunmancontractsStart: () => Promise<{ success: boolean; error?: string }>;
+      gunmancontractsStop: () => Promise<{ success: boolean; error?: string }>;
+      gunmancontractsStatus: () => Promise<{
+        success: boolean;
+        running: boolean;
+        events_received?: number;
+        last_event_ts?: number | null;
+        last_event_type?: string | null;
+        error?: string;
+      }>;
+      gunmancontractsGetSettings: () => Promise<{
+        success: boolean;
+        gameDir?: string | null;
+        solenoidRecoil?: SolenoidRecoilSettings;
+        error?: string;
+      }>;
+      gunmancontractsSetSolenoidRecoil: (
+        solenoidRecoil: Partial<SolenoidRecoilSettings>
+      ) => Promise<{ success: boolean; solenoidRecoil?: SolenoidRecoilSettings; error?: string }>;
+      gunmancontractsBrowseGameDir: () => Promise<{
+        success: boolean;
+        gameDir?: string;
+        canceled?: boolean;
+        error?: string;
+      }>;
+      gunmancontractsGetGameDir: () => Promise<{
+        success: boolean;
+        gameDir?: string | null;
+        error?: string;
+      }>;
+      gunmancontractsSetGameDir: (gameDir: string | null) => Promise<{ success: boolean; error?: string }>;
+      gunmancontractsCheckModInstalled: () => Promise<{
+        success: boolean;
+        installed?: boolean;
+        sourceAvailable?: boolean;
+        missingFiles?: string[];
+        gameDir?: string;
+        error?: string;
+      }>;
+      gunmancontractsInstallMod: () => Promise<{
+        success: boolean;
+        copiedFiles?: string[];
+        destination?: string;
+        error?: string;
+      }>;
       // Generic Screen Health Watcher API
       screenHealthExportProfile: (profile: Record<string, any>) => Promise<{
         success: boolean;
@@ -1139,6 +1184,71 @@ export async function battlesisterInstallMod(): Promise<{
   error?: string;
 }> {
   return await ensureBridge().battlesisterInstallMod();
+}
+
+export type GunmanContractsStatus = {
+  success?: boolean;
+  running: boolean;
+  events_received?: number;
+  last_event_ts?: number | null;
+  last_event_type?: string | null;
+  error?: string;
+};
+
+export async function gunmancontractsStart(): Promise<{ success: boolean; error?: string }> {
+  return await ensureBridge().gunmancontractsStart();
+}
+
+export async function gunmancontractsStop(): Promise<{ success: boolean; error?: string }> {
+  return await ensureBridge().gunmancontractsStop();
+}
+
+export async function gunmancontractsStatus(): Promise<GunmanContractsStatus> {
+  return await ensureBridge().gunmancontractsStatus();
+}
+
+export async function gunmancontractsGetSettings(): Promise<{
+  success: boolean;
+  gameDir?: string | null;
+  solenoidRecoil?: SolenoidRecoilSettings;
+  error?: string;
+}> {
+  return await ensureBridge().gunmancontractsGetSettings();
+}
+
+export async function gunmancontractsSetSolenoidRecoil(
+  solenoidRecoil: Partial<SolenoidRecoilSettings>
+): Promise<{ success: boolean; solenoidRecoil?: SolenoidRecoilSettings; error?: string }> {
+  return await ensureBridge().gunmancontractsSetSolenoidRecoil(solenoidRecoil);
+}
+
+export async function gunmancontractsBrowseGameDir(): Promise<{
+  success: boolean;
+  gameDir?: string;
+  canceled?: boolean;
+  error?: string;
+}> {
+  return await ensureBridge().gunmancontractsBrowseGameDir();
+}
+
+export async function gunmancontractsCheckModInstalled(): Promise<{
+  success: boolean;
+  installed?: boolean;
+  sourceAvailable?: boolean;
+  missingFiles?: string[];
+  gameDir?: string;
+  error?: string;
+}> {
+  return await ensureBridge().gunmancontractsCheckModInstalled();
+}
+
+export async function gunmancontractsInstallMod(): Promise<{
+  success: boolean;
+  copiedFiles?: string[];
+  destination?: string;
+  error?: string;
+}> {
+  return await ensureBridge().gunmancontractsInstallMod();
 }
 
 // -------------------------------------------------------------------------
