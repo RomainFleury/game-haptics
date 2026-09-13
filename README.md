@@ -62,9 +62,16 @@ This project builds on the work of people who created and shared mods for newer
 haptic hardware. Their work made it possible to bring support for more games to
 the Third Space Vest.
 
-> **Credits are being prepared.**
->
-> This section will list the original mod authors, projects, and source links.
+Special thanks to:
+
+- [floh-bhaptics](https://github.com/floh-bhaptics) for creating and openly
+  sharing an extensive collection of bHaptics, OWO, and ProTube mods.
+- [Astien (`Astienth`)](https://github.com/Astienth) for creating and openly
+  sharing bHaptics, ProTube, ProVolver, and other VR mods.
+
+Their broader body of work across many games—not just one particular
+integration—gave us examples and foundations that made expanding this project
+much easier.
 
 ## For developers
 
