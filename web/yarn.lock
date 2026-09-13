@@ -2183,6 +2183,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"cross-spawn-windows-exe@npm:^1.1.0":
+  version: 1.2.0
+  resolution: "cross-spawn-windows-exe@npm:1.2.0"
+  dependencies:
+    "@malept/cross-spawn-promise": "npm:^1.1.0"
+    is-wsl: "npm:^2.2.0"
+    which: "npm:^2.0.2"
+  checksum: 10c0/2e7cea1216038250b6adda8d3f13fbbf4f322a75a1eea65ac90f4ce361a233fc50b65ae521232df5d34ba4140e845065461d210d131fcb40cce3141f0cfb082f
+  languageName: node
+  linkType: hard
+
 "cross-spawn@npm:^7.0.1, cross-spawn@npm:^7.0.3, cross-spawn@npm:^7.0.5, cross-spawn@npm:^7.0.6":
   version: 7.0.6
   resolution: "cross-spawn@npm:7.0.6"
@@ -3618,6 +3629,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"is-docker@npm:^2.0.0":
+  version: 2.2.1
+  resolution: "is-docker@npm:2.2.1"
+  bin:
+    is-docker: cli.js
+  checksum: 10c0/e828365958d155f90c409cdbe958f64051d99e8aedc2c8c4cd7c89dcf35329daed42f7b99346f7828df013e27deb8f721cf9408ba878c76eb9e8290235fbcdcc
+  languageName: node
+  linkType: hard
+
 "is-docker@npm:^3.0.0":
   version: 3.0.0
   resolution: "is-docker@npm:3.0.0"
@@ -3725,6 +3745,15 @@ __metadata:
   version: 0.1.0
   resolution: "is-wayland@npm:0.1.0"
   checksum: 10c0/3eb9e757e2506b160c4f5746d510baa199c8ca2b6a44ba02e42f0e63787cf0dc1ab2c49e177642e0b14f3bf3ff97cb8518bda976ab7c0a670ba4c1e41f5f2ae7
+  languageName: node
+  linkType: hard
+
+"is-wsl@npm:^2.2.0":
+  version: 2.2.0
+  resolution: "is-wsl@npm:2.2.0"
+  dependencies:
+    is-docker: "npm:^2.0.0"
+  checksum: 10c0/a6fa2d370d21be487c0165c7a440d567274fbba1a817f2f0bfa41cc5e3af25041d84267baa22df66696956038a43973e72fca117918c91431920bdef490fa25e
   languageName: node
   linkType: hard
 
@@ -4859,6 +4888,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"rcedit@npm:^5.0.2":
+  version: 5.0.2
+  resolution: "rcedit@npm:5.0.2"
+  dependencies:
+    cross-spawn-windows-exe: "npm:^1.1.0"
+  checksum: 10c0/dbac01cedd53c589a9e91cf4e6d67a7363405f9fa9732c0f3bf19ba67bc1cdabd3fde61bbd7d32ab7659ef8413b230a7453c0c674a716a957e4e4dd372b3a875
+  languageName: node
+  linkType: hard
+
 "react-dom@npm:^18.3.1":
   version: 18.3.1
   resolution: "react-dom@npm:18.3.1"
@@ -5746,6 +5784,7 @@ __metadata:
     electron-builder: "npm:^24.13.3"
     postcss: "npm:^8.4.47"
     python-shell: "npm:^5.0.0"
+    rcedit: "npm:^5.0.2"
     react: "npm:^18.3.1"
     react-dom: "npm:^18.3.1"
     react-router-dom: "npm:^7.9.6"
@@ -6101,7 +6140,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"which@npm:^2.0.1":
+"which@npm:^2.0.1, which@npm:^2.0.2":
   version: 2.0.2
   resolution: "which@npm:2.0.2"
   dependencies:

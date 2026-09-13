@@ -87,12 +87,16 @@ win:
   icon: public/icon.ico
   # Request admin rights if needed for USB access
   requestedExecutionLevel: asInvoker
-  # Disable code signing / exe editing (avoids winCodeSign symlink privilege errors on Windows)
+  # Disable code signing / exe editing (avoids winCodeSign symlink privilege errors on Windows).
+  # Icon is applied separately via afterPack (scripts/afterPack-win-icon.mjs).
   sign: null
   signDlls: false
   signAndEditExecutable: false
   verifyUpdateCodeSignature: false
   signingHashAlgorithms: []
+
+# Apply .exe icon without enabling signAndEditExecutable / winCodeSign
+afterPack: scripts/afterPack-win-icon.mjs
 
 # NSIS installer configuration  
 nsis:
