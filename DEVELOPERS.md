@@ -89,4 +89,3 @@ python3 scripts/check_integrations.py
 
 For detailed repository context and contribution patterns, see
 [AI onboarding](AI_ONBOARDING.md) and [the workspace rules](.cursorrules).
-
