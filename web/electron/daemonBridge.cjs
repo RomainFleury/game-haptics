@@ -214,9 +214,11 @@ class DaemonBridge extends EventEmitter {
       if (daemonInfo.type === "exe") {
         // Production: run bundled executable
         cmd = daemonInfo.path;
-        args = ["daemon", "--port", String(this.port)];
-        
-        // Create log file for daemon output
+        // Must include "start" — matches CLI: vest-daemon daemon start --port N
+        args = ["daemon", "start", "--port", String(this.port)];
+
+        // Create log file for daemon launch notes (stdout/stderr are not piped —
+        // piping a detached Windows console child often ends it with 0xC000013A).
         const logDir = path.join(require("os").tmpdir(), "third-space-vest");
         if (!fs.existsSync(logDir)) {
           fs.mkdirSync(logDir, { recursive: true });
@@ -224,14 +226,19 @@ class DaemonBridge extends EventEmitter {
         const logFile = path.join(logDir, `daemon-${this.port}.log`);
         logStream = createWriteStream(logFile, { flags: "a" });
         logStream.write(`\n=== Daemon started at ${new Date().toISOString()} ===\n`);
-        
+        logStream.write(`[spawn] ${cmd} ${args.join(" ")}\n`);
+        logStream.write(
+          "[note] stdout/stderr ignored (detached); startup detected via TCP port\n"
+        );
+
         options = {
           cwd: path.dirname(daemonInfo.path),
           detached: true,
-          // Pipe stdout/stderr so we can detect startup AND write to log file
-          // Note: Console window will be empty because output is piped
-          // Check log file for daemon output: %TEMP%\third-space-vest\daemon-{port}.log
-          stdio: ["ignore", "pipe", "pipe"],
+          windowsHide: true,
+          // Critical on Windows: do not pipe stdio to Electron for a detached
+          // PyInstaller console exe — parent pipe teardown sends CONTROL_C_EXIT
+          // (3221225786 / 0xC000013A) and the daemon dies after a few seconds.
+          stdio: "ignore",
         };
         console.log(`[daemon] Spawning: ${cmd} ${args.join(" ")}`);
         console.log(`[daemon] Log file: ${logFile}`);
@@ -274,70 +281,79 @@ class DaemonBridge extends EventEmitter {
 
       let started = false;
 
-      // Write stdout to log file and check for startup messages
-      this.daemonProcess.stdout.on("data", (data) => {
-        const output = data.toString();
-        if (logStream) {
-          logStream.write(output);
-        }
-        console.log("[daemon]", output.trim());
-        
-        // Check for startup messages
-        if ((output.includes("listening") || 
-             output.includes("Starting") || 
-             output.includes("Daemon started") || 
-             output.includes("started on")) && !started) {
-          started = true;
-          console.log("[daemon] Detected daemon started from output");
-          resolve();
-        }
-      });
+      // Write stdout/stderr to log when piped (dev). Packaged exe uses stdio ignore.
+      if (this.daemonProcess.stdout) {
+        this.daemonProcess.stdout.on("data", (data) => {
+          const output = data.toString();
+          if (logStream) {
+            logStream.write(output);
+          }
+          console.log("[daemon]", output.trim());
 
-      // Write stderr to log file and check for startup messages
-      this.daemonProcess.stderr.on("data", (data) => {
-        const output = data.toString();
-        if (logStream) {
-          logStream.write(`[stderr] ${output}`);
-        }
-        console.error("[daemon stderr]", output.trim());
-        
-        // Also check stderr for startup messages
-        if ((output.includes("listening") || 
-             output.includes("Starting") || 
-             output.includes("Daemon started") || 
-             output.includes("started on")) && !started) {
-          started = true;
-          console.log("[daemon] Detected daemon started from stderr");
-          resolve();
-        }
-      });
+          if (
+            (output.includes("listening") ||
+              output.includes("Starting") ||
+              output.includes("Daemon started") ||
+              output.includes("started on")) &&
+            !started
+          ) {
+            started = true;
+            console.log("[daemon] Detected daemon started from output");
+            resolve();
+          }
+        });
+      }
 
-      // Also check TCP port as a fallback detection method
+      if (this.daemonProcess.stderr) {
+        this.daemonProcess.stderr.on("data", (data) => {
+          const output = data.toString();
+          if (logStream) {
+            logStream.write(`[stderr] ${output}`);
+          }
+          console.error("[daemon stderr]", output.trim());
+
+          if (
+            (output.includes("listening") ||
+              output.includes("Starting") ||
+              output.includes("Daemon started") ||
+              output.includes("started on")) &&
+            !started
+          ) {
+            started = true;
+            console.log("[daemon] Detected daemon started from stderr");
+            resolve();
+          }
+        });
+      }
+
+      // TCP port check — primary detection for packaged builds (no stdio pipes)
       const checkPort = () => {
         if (started) return;
-        
+
         const testSocket = new net.Socket();
         testSocket.setTimeout(500);
-        
+
         testSocket.on("connect", () => {
           testSocket.destroy();
           if (!started) {
             started = true;
             console.log("[daemon] Detected daemon started (port connected)");
+            if (logStream) {
+              logStream.write("[ok] TCP port open — daemon listening\n");
+            }
             resolve();
           }
         });
-        
+
         testSocket.on("error", () => {
-          // Port not ready yet, try again
           setTimeout(checkPort, 200);
         });
-        
+
         testSocket.on("timeout", () => {
           testSocket.destroy();
           setTimeout(checkPort, 200);
         });
-        
+
         try {
           testSocket.connect(this.port, this.host);
         } catch (err) {
@@ -345,7 +361,7 @@ class DaemonBridge extends EventEmitter {
         }
       };
 
-      // Start checking for port after a short delay (fallback)
+      // Start checking for port after a short delay
       setTimeout(checkPort, 500);
 
       this.daemonProcess.on("error", (err) => {
