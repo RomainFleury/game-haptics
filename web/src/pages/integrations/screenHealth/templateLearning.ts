@@ -28,7 +28,7 @@ export function learnDigitTemplatesFromCanvas(args: LearnArgs): Record<string, s
   } = args;
 
   const raw = (displayedValue || "").replace(/[^\d]/g, "");
-  if (!raw) throw new Error("Enter the current health value (digits only)");
+  if (!raw) throw new Error("Enter the number currently shown in the ROI (digits only)");
   if (raw.length !== digitsCount) throw new Error(`Expected exactly ${digitsCount} digits (got ${raw.length})`);
 
   const ctx = canvas.getContext("2d");

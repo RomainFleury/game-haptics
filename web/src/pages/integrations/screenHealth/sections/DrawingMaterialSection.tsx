@@ -34,7 +34,8 @@ export function DrawingMaterialSection() {
     colorVignetteRois: colorVignette.rois,
     healthBarRoi: hb.roi,
     healthNumberRoi: hn.roi,
-    ammoRoi: recoil.roi,
+    ammoRoi: recoil.zones[0]?.rect ?? null,
+    ammoZones: recoil.zones,
   });
   const lockedHit = lockedHitDetectorType(drawn);
   const drawingHit = profile.canvasEditTarget === "detector";
@@ -50,7 +51,7 @@ export function DrawingMaterialSection() {
     <div className="space-y-3">
       <h3 className="text-sm font-semibold text-white">Draw</h3>
       <p className="text-xs text-slate-500">
-        Hit detection is one type only. Recoil is a separate box (ammo numbers or a fill-up heat bar).
+        Hit detection is one type only. Recoil is separate (ammo numbers — draw one box per gun — or a fill-up heat bar).
         Settings appear after you draw.
       </p>
       <div className="flex flex-wrap gap-4 items-end">

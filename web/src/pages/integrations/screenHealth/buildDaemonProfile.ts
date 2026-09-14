@@ -58,20 +58,34 @@ export type RecoilDraftSnapshot = {
   recoilDrawKind?: "ammo_number" | "fill_up_bar";
   ocrEngine?: AmmoOcrEngineId;
   durationMs: number;
-  roi: { x: number; y: number; w: number; h: number } | null;
+  zones: Array<{ name: string; rect: { x: number; y: number; w: number; h: number } }>;
+  /** @deprecated Prefer zones[]; kept for older call sites that still pass a single roi. */
+  roi?: { x: number; y: number; w: number; h: number } | null;
   stableReads: number;
   hitMinDrop: number;
   hitCooldownMs: number;
+  digits?: number;
+  invert?: boolean;
+  threshold?: number;
+  scale?: number;
+  hammingMax?: number;
+  templateSize?: { w: number; h: number };
+  templates?: Record<string, unknown>;
   backgroundRgb?: number[];
   toleranceL1?: number;
   minBackgroundDrop?: number;
 };
 
+function recoilZones(recoil: RecoilDraftSnapshot): Array<{ name: string; rect: { x: number; y: number; w: number; h: number } }> {
+  if (Array.isArray(recoil.zones) && recoil.zones.length > 0) return recoil.zones;
+  if (recoil.roi) return [{ name: "ammo_1", rect: recoil.roi }];
+  return [];
+}
+
 function attachRecoil(profile: Record<string, any>, recoil?: RecoilDraftSnapshot): Record<string, any> {
-  if (!recoil?.roi) {
-    return profile;
-  }
-  const roi = recoil.roi;
+  if (!recoil) return profile;
+  const zones = recoilZones(recoil);
+  if (zones.length === 0) return profile;
   const kind =
     recoil.recoilType === "fill_up_bar"
       ? "fill_up_bar"
@@ -81,6 +95,7 @@ function attachRecoil(profile: Record<string, any>, recoil?: RecoilDraftSnapshot
           ? "fill_up_bar"
           : "ammo_number";
   if (kind === "fill_up_bar") {
+    const roi = zones[0].rect;
     return {
       ...profile,
       recoil: {
@@ -99,24 +114,77 @@ function attachRecoil(profile: Record<string, any>, recoil?: RecoilDraftSnapshot
       },
     };
   }
+  const templateDigits = recoil.templates && typeof recoil.templates === "object" ? recoil.templates : {};
+  const hasTemplates = Object.keys(templateDigits).length > 0;
+  const useTemplates = hasTemplates || recoil.ocrEngine === "templates";
+  const shared = useTemplates
+    ? {
+        type: "ammo_number" as const,
+        engine: "templates",
+        duration_ms: Math.max(25, Math.floor(recoil.durationMs)),
+        digits: Math.max(1, Math.floor(recoil.digits ?? 3)),
+        preprocess: {
+          invert: Boolean(recoil.invert),
+          threshold: Math.max(0, Math.min(1, recoil.threshold ?? 0.55)),
+          scale: Math.max(1, Math.floor(recoil.scale ?? 2)),
+        },
+        readout: {
+          min: 0,
+          max: 999,
+          stable_reads: Math.max(1, Math.floor(recoil.stableReads)),
+        },
+        hit_on_decrease: {
+          min_drop: Math.max(1, Math.floor(recoil.hitMinDrop)),
+          cooldown_ms: Math.max(0, Math.floor(recoil.hitCooldownMs)),
+        },
+        templates: {
+          template_set_id: "learned_v1",
+          hamming_max: Math.max(0, Math.floor(recoil.hammingMax ?? 120)),
+          width: Math.max(4, Math.floor(recoil.templateSize?.w ?? 16)),
+          height: Math.max(4, Math.floor(recoil.templateSize?.h ?? 24)),
+          digits: templateDigits,
+        },
+      }
+    : {
+        type: "ammo_number" as const,
+        engine: recoil.ocrEngine && recoil.ocrEngine !== "templates" ? recoil.ocrEngine : "daemon",
+        duration_ms: Math.max(25, Math.floor(recoil.durationMs)),
+        // Text OCR reads variable-width ammo (1�3). `digits` is only a schema upper bound.
+        digits: 3,
+        readout: {
+          min: 0,
+          max: 999,
+          stable_reads: Math.max(1, Math.floor(recoil.stableReads)),
+        },
+        hit_on_decrease: {
+          min_drop: Math.max(1, Math.floor(recoil.hitMinDrop)),
+          cooldown_ms: Math.max(0, Math.floor(recoil.hitCooldownMs)),
+        },
+      };
+  if (zones.length === 1) {
+    const roi = zones[0].rect;
+    return {
+      ...profile,
+      recoil: {
+        ...shared,
+        name: zones[0].name || "ammo_number",
+        roi: { x: clamp01(roi.x), y: clamp01(roi.y), w: clamp01(roi.w), h: clamp01(roi.h) },
+      },
+    };
+  }
   return {
     ...profile,
     recoil: {
-      type: "ammo_number",
-      engine: "daemon",
-      duration_ms: Math.max(25, Math.floor(recoil.durationMs)),
-      roi: { x: clamp01(roi.x), y: clamp01(roi.y), w: clamp01(roi.w), h: clamp01(roi.h) },
-      // Schema placeholder only — text OCR accepts variable 1–3 digit ammo
-      digits: 3,
-      readout: {
-        min: 0,
-        max: 999,
-        stable_reads: Math.max(1, Math.floor(recoil.stableReads)),
-      },
-      hit_on_decrease: {
-        min_drop: Math.max(1, Math.floor(recoil.hitMinDrop)),
-        cooldown_ms: Math.max(0, Math.floor(recoil.hitCooldownMs)),
-      },
+      ...shared,
+      zones: zones.map((z, idx) => ({
+        name: z.name || `ammo_${idx + 1}`,
+        roi: {
+          x: clamp01(z.rect.x),
+          y: clamp01(z.rect.y),
+          w: clamp01(z.rect.w),
+          h: clamp01(z.rect.h),
+        },
+      })),
     },
   };
 }
@@ -141,7 +209,7 @@ export function buildScreenHealthDaemonProfile(args: {
     colorVignetteRois: cv.rois,
     healthBarRoi: hb.roi,
     healthNumberRoi: hn.roi,
-    ammoRoi: recoil?.roi ?? null,
+    ammoRoi: (recoil ? recoilZones(recoil) : [])[0]?.rect ?? null,
   });
   const hitType = lockedHitDetectorType(drawn);
   const detectors: Record<string, unknown>[] = [];
