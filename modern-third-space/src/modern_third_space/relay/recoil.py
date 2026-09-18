@@ -114,11 +114,12 @@ def parse_solenoid_settings(payload: Optional[Dict[str, Any]]) -> Dict[str, Any]
     Normalize solenoid recoil settings from a daemon/UI payload.
 
     Accepted shapes:
-      {"solenoid_recoil": {"enabled": true, "duration_ms": 40}}
-      {"enabled": true, "duration_ms": 40}   # already the nested object
+      {"solenoid_recoil": {"enabled": true, "duration_ms": 40, "hold_on_reload": false}}
+      {"enabled": true, "duration_ms": 40, "hold_on_reload": true}
     """
     enabled = True
     duration_ms = DEFAULT_RECOIL_MS
+    hold_on_reload = False
 
     raw: Any = payload
     if isinstance(payload, dict) and "solenoid_recoil" in payload:
@@ -132,5 +133,13 @@ def parse_solenoid_settings(payload: Optional[Dict[str, Any]]) -> Dict[str, Any]
                 duration_ms = clamp_duration_ms(int(raw["duration_ms"]))
             except (TypeError, ValueError):
                 duration_ms = DEFAULT_RECOIL_MS
+        if "hold_on_reload" in raw:
+            hold_on_reload = bool(raw.get("hold_on_reload"))
+        elif "holdOnReload" in raw:
+            hold_on_reload = bool(raw.get("holdOnReload"))
 
-    return {"enabled": enabled, "duration_ms": duration_ms}
+    return {
+        "enabled": enabled,
+        "duration_ms": duration_ms,
+        "hold_on_reload": hold_on_reload,
+    }

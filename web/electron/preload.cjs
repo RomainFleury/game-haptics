@@ -110,6 +110,8 @@ contextBridge.exposeInMainWorld("vestBridge", {
   gunmancontractsGetSettings: () => ipcRenderer.invoke("gunmancontracts:getSettings"),
   gunmancontractsSetSolenoidRecoil: (solenoidRecoil) =>
     ipcRenderer.invoke("gunmancontracts:setSolenoidRecoil", solenoidRecoil),
+  gunmancontractsSetEnabledEvents: (enabledEvents) =>
+    ipcRenderer.invoke("gunmancontracts:setEnabledEvents", enabledEvents),
   gunmancontractsBrowseGameDir: () => ipcRenderer.invoke("gunmancontracts:browseGameDir"),
   gunmancontractsGetGameDir: () => ipcRenderer.invoke("gunmancontracts:getGameDir"),
   gunmancontractsSetGameDir: (gameDir) => ipcRenderer.invoke("gunmancontracts:setGameDir", gameDir),

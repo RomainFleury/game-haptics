@@ -5,6 +5,7 @@ import {
   gunmancontractsStatus,
   gunmancontractsGetSettings,
   gunmancontractsSetSolenoidRecoil,
+  gunmancontractsSetEnabledEvents,
   gunmancontractsBrowseGameDir,
   gunmancontractsCheckModInstalled,
   gunmancontractsInstallMod,
@@ -21,8 +22,15 @@ export type GunmanContractsGameEvent = {
   params?: Record<string, unknown>;
 };
 
+export type GunmanContractsEnabledEvents = Record<string, boolean>;
+
 const MAX_EVENTS = 50;
-const DEFAULT_SOLENOID: SolenoidRecoilSettings = { enabled: true, durationMs: 40 };
+const DEFAULT_SOLENOID: SolenoidRecoilSettings = {
+  enabled: true,
+  durationMs: 40,
+  holdOnReload: false,
+};
+
 
 export function useGunmanContractsIntegration() {
   const [status, setStatus] = useState<GunmanContractsStatus>({
@@ -35,6 +43,8 @@ export function useGunmanContractsIntegration() {
   const [error, setError] = useState<string | null>(null);
   const [gameEvents, setGameEvents] = useState<GunmanContractsGameEvent[]>([]);
   const [solenoidRecoil, setSolenoidRecoil] = useState<SolenoidRecoilSettings>(DEFAULT_SOLENOID);
+  const [enabledEvents, setEnabledEvents] = useState<GunmanContractsEnabledEvents | null>(null);
+  const [restartRequired, setRestartRequired] = useState(false);
   const [gameDir, setGameDir] = useState("");
   const [modStatus, setModStatus] = useState<{
     installed: boolean;
@@ -66,6 +76,9 @@ export function useGunmanContractsIntegration() {
       if (result.success) {
         if (result.solenoidRecoil) {
           setSolenoidRecoil(result.solenoidRecoil);
+        }
+        if (result.enabledEvents) {
+          setEnabledEvents(result.enabledEvents);
         }
         if (result.gameDir) {
           setGameDir(result.gameDir);
@@ -136,6 +149,7 @@ export function useGunmanContractsIntegration() {
     try {
       const result = await gunmancontractsStart();
       if (result.success) {
+        setRestartRequired(false);
         await fetchStatus(true);
       } else {
         setError(result.error || "Failed to start Gunman Contracts integration");
@@ -174,11 +188,33 @@ export function useGunmanContractsIntegration() {
       setSolenoidRecoil(next);
       try {
         await gunmancontractsSetSolenoidRecoil(next);
+        if (status.running) setRestartRequired(true);
       } catch (err) {
         console.error("Failed to save Gunman Contracts solenoid settings:", err);
       }
     },
-    [solenoidRecoil]
+    [solenoidRecoil, status.running]
+  );
+
+  const setEventEnabled = useCallback(
+    async (eventType: string, enabled: boolean) => {
+      const prev = enabledEvents || {};
+      const next: GunmanContractsEnabledEvents = { ...prev, [eventType]: enabled };
+      setEnabledEvents(next);
+      try {
+        const result = await gunmancontractsSetEnabledEvents(next);
+        if (!result.success) {
+          setError(result.error || "Failed to save feedback settings");
+        } else {
+          setError(null);
+          if (status.running) setRestartRequired(true);
+        }
+      } catch (err) {
+        console.error("Failed to save Gunman Contracts enabled events:", err);
+        setError(err instanceof Error ? err.message : "Failed to save feedback settings");
+      }
+    },
+    [enabledEvents, status.running]
   );
 
   useEffect(() => {
@@ -219,6 +255,9 @@ export function useGunmanContractsIntegration() {
     gameEvents,
     solenoidRecoil,
     setSolenoidRecoilSettings,
+    enabledEvents,
+    setEventEnabled,
+    restartRequired,
     gameDir,
     modStatus,
     browseGameDir,

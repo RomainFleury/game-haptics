@@ -1061,7 +1061,13 @@ class DaemonBridge extends EventEmitter {
     try {
       const params = {};
       if (solenoidRecoil && typeof solenoidRecoil === "object") {
-        params.solenoid_recoil = solenoidRecoil;
+        if (solenoidRecoil.enabled_events && typeof solenoidRecoil.enabled_events === "object") {
+          params.enabled_events = solenoidRecoil.enabled_events;
+        }
+        const { enabled_events: _ignored, ...solenoidOnly } = solenoidRecoil;
+        if (Object.keys(solenoidOnly).length > 0) {
+          params.solenoid_recoil = solenoidOnly;
+        }
       }
       const response = await this.sendCommand("gunmancontracts_start", params);
       return {

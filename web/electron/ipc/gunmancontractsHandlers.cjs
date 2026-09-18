@@ -87,9 +87,12 @@ function registerGunmanContractsHandlers(getMainWindow) {
   ipcMain.handle("gunmancontracts:start", async () => {
     const daemon = getDaemonBridge();
     const solenoid = gunmancontractsStorage.getGunmanContractsSolenoidRecoil();
+    const enabledEvents = gunmancontractsStorage.getGunmanContractsEnabledEvents();
     return await daemon.gunmancontractsStart({
       enabled: solenoid.enabled,
       duration_ms: solenoid.durationMs,
+      hold_on_reload: Boolean(solenoid.holdOnReload),
+      enabled_events: enabledEvents,
     });
   });
 
@@ -107,6 +110,7 @@ function registerGunmanContractsHandlers(getMainWindow) {
         success: true,
         gameDir: gunmancontractsStorage.getGunmanContractsGameDir(),
         solenoidRecoil: gunmancontractsStorage.getGunmanContractsSolenoidRecoil(),
+        enabledEvents: gunmancontractsStorage.getGunmanContractsEnabledEvents(),
       };
     } catch (error) {
       console.error("Error in gunmancontracts:getSettings:", error);
@@ -120,6 +124,16 @@ function registerGunmanContractsHandlers(getMainWindow) {
       return { success: true, solenoidRecoil: saved };
     } catch (error) {
       console.error("Error in gunmancontracts:setSolenoidRecoil:", error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle("gunmancontracts:setEnabledEvents", async (_, enabledEvents) => {
+    try {
+      const saved = gunmancontractsStorage.setGunmanContractsEnabledEvents(enabledEvents || {});
+      return { success: true, enabledEvents: saved };
+    } catch (error) {
+      console.error("Error in gunmancontracts:setEnabledEvents:", error);
       return { success: false, error: error.message };
     }
   });

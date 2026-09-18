@@ -15,6 +15,7 @@ https://github.com/Astienth/GunmanContracts_Provolver
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -27,6 +28,7 @@ from ..relay.recoil import (
 from ..vest.cell_layout import (
     LEFT_ARM,
     LEFT_SIDE,
+    LOWER_CELLS,
     RIGHT_ARM,
     RIGHT_SIDE,
     Cell,
@@ -37,12 +39,47 @@ logger = logging.getLogger(__name__)
 GameEventCallback = Callable[[str, dict], None]
 TriggerCallback = Callable[[int, int], None]
 RecoilCallback = Callable[[int], None]
+RecoilHoldCallback = Callable[[bool], None]
 
 _FIRE_RECOIL_EVENTS = {
     "gun_fire": "pistol",
     "shotgun_fire": "shotgun",
     "rifle_fire": "rifle",
 }
+
+# Solenoid hold: slide_lock (OnOutOfAmmo) → ON; slide_release (SetSlideBack(0)) or
+# cock_forward (OnCockingHandleReleased at real slide-forward) → OFF.
+# Do not end hold on FPSReleaseSlide — that fires at reload button press.
+_RELOAD_HOLD_START_EVENTS = frozenset({"slide_lock"})
+_RELOAD_HOLD_END_EVENTS = frozenset({"slide_release", "cock_forward"})
+
+# Toggle keys shown in the UI / passed via enabled_events on start.
+DEFAULT_ENABLED_EVENTS: Dict[str, bool] = {
+    "gun_fire": True,
+    "shotgun_fire": True,
+    "rifle_fire": True,
+    "bow_fire": True,
+    "player_hit": True,
+    "holster_in": True,
+    "holster_out": True,
+    "mag_eject": True,
+    "reload": True,
+    "cock_back": True,
+    "cock_forward": True,
+    "slide_lock": True,
+    "slide_release": True,
+    "ammo_pouch": True,
+    "heartbeat": True,
+    "healing": True,
+}
+
+# Internal control events map onto the heartbeat / healing toggles.
+_EVENT_TOGGLE_ALIASES: Dict[str, str] = {
+    "heartbeat_start": "heartbeat",
+    "heartbeat_stop": "heartbeat",
+}
+
+_HEARTBEAT_INTERVAL_S = 1.0
 
 
 @dataclass
@@ -57,6 +94,21 @@ class GunmanContractsEvent:
     def __post_init__(self) -> None:
         if self.timestamp == 0.0:
             self.timestamp = time.time()
+
+
+def normalize_enabled_events(raw: Optional[Dict[str, Any]]) -> Dict[str, bool]:
+    """Merge a partial enabled_events payload with defaults (all True)."""
+    enabled = dict(DEFAULT_ENABLED_EVENTS)
+    if isinstance(raw, dict):
+        for key, value in raw.items():
+            if isinstance(key, str) and key in enabled:
+                enabled[key] = bool(value)
+    return enabled
+
+
+def toggle_key_for_event(event_type: str) -> str:
+    """Map a raw event name to its UI / enabled_events toggle key."""
+    return _EVENT_TOGGLE_ALIASES.get(event_type, event_type)
 
 
 def _hand_is_left(hand: Optional[str]) -> Optional[bool]:
@@ -148,10 +200,38 @@ def map_event_to_haptics(event: GunmanContractsEvent) -> List[Tuple[int, int]]:
                 commands.append((Cell.FRONT_LOWER_LEFT, speed))
                 commands.append((Cell.FRONT_LOWER_RIGHT, speed))
 
+    elif event_type == "mag_eject":
+        speed = 4
+        cells = LEFT_ARM if hand_left else RIGHT_ARM if hand_left is False else LEFT_ARM + RIGHT_ARM
+        commands.extend((cell, speed) for cell in cells)
+
+    elif event_type == "reload":
+        speed = 4
+        if hand_left is True:
+            commands.append((Cell.FRONT_LOWER_LEFT, speed))
+        elif hand_left is False:
+            commands.append((Cell.FRONT_LOWER_RIGHT, speed))
+        else:
+            commands.append((Cell.FRONT_LOWER_LEFT, speed))
+            commands.append((Cell.FRONT_LOWER_RIGHT, speed))
+
+    elif event_type in ("cock_back", "cock_forward", "slide_lock", "slide_release"):
+        speed = 3
+        cells = LEFT_ARM if hand_left else RIGHT_ARM if hand_left is False else LEFT_ARM + RIGHT_ARM
+        commands.extend((cell, speed) for cell in cells)
+
+    elif event_type == "ammo_pouch":
+        commands.append((Cell.FRONT_UPPER_LEFT, 3))
+        commands.append((Cell.FRONT_UPPER_RIGHT, 3))
+
     elif event_type == "heartbeat":
         commands.append((Cell.FRONT_LOWER_LEFT, 2))
         commands.append((Cell.FRONT_LOWER_RIGHT, 2))
 
+    elif event_type == "healing":
+        commands.extend((cell, 4) for cell in LOWER_CELLS)
+
+    # heartbeat_start / heartbeat_stop are control-only (no one-shot cells)
     return commands
 
 
@@ -167,16 +247,24 @@ class GunmanContractsManager:
         on_game_event: Optional[GameEventCallback] = None,
         on_trigger: Optional[TriggerCallback] = None,
         on_recoil: Optional[RecoilCallback] = None,
+        on_recoil_hold: Optional[RecoilHoldCallback] = None,
     ) -> None:
         self.on_game_event = on_game_event
         self.on_trigger = on_trigger
         self.on_recoil = on_recoil
+        self.on_recoil_hold = on_recoil_hold
         self._enabled = False
         self.events_received = 0
         self.last_event_ts: Optional[float] = None
         self.last_event_type: Optional[str] = None
         self._solenoid_enabled = True
         self._solenoid_recoil_ms = DEFAULT_RECOIL_MS
+        self._solenoid_hold_on_reload = False
+        self._reload_hold_active = False
+        self._enabled_events: Dict[str, bool] = dict(DEFAULT_ENABLED_EVENTS)
+        self._heartbeat_stop = threading.Event()
+        self._heartbeat_thread: Optional[threading.Thread] = None
+        self._heartbeat_lock = threading.Lock()
 
     @property
     def enabled(self) -> bool:
@@ -186,23 +274,48 @@ class GunmanContractsManager:
     def is_running(self) -> bool:
         return self._enabled
 
-    def enable(self, solenoid_recoil: Optional[Dict[str, Any]] = None) -> None:
+    @property
+    def enabled_events(self) -> Dict[str, bool]:
+        return dict(self._enabled_events)
+
+    def is_event_enabled(self, event_type: str) -> bool:
+        key = toggle_key_for_event(event_type)
+        if key not in self._enabled_events:
+            # Unknown events are ignored for haptics but still logged upstream.
+            return False
+        return bool(self._enabled_events.get(key, False))
+
+    def enable(
+        self,
+        solenoid_recoil: Optional[Dict[str, Any]] = None,
+        enabled_events: Optional[Dict[str, Any]] = None,
+    ) -> None:
         settings = parse_solenoid_settings(solenoid_recoil)
         self._solenoid_enabled = bool(settings["enabled"])
         self._solenoid_recoil_ms = int(settings["duration_ms"])
+        self._solenoid_hold_on_reload = bool(settings.get("hold_on_reload", False))
+        self._enabled_events = normalize_enabled_events(enabled_events)
         self._enabled = True
         logger.info(
-            "[gunmancontracts] enabled (solenoid_recoil=%s duration_ms=%s)",
+            "[gunmancontracts] enabled (solenoid_recoil=%s duration_ms=%s hold_on_reload=%s enabled_events=%s)",
             self._solenoid_enabled,
             self._solenoid_recoil_ms,
+            self._solenoid_hold_on_reload,
+            self._enabled_events,
         )
 
     def disable(self) -> None:
+        self._stop_heartbeat()
+        self._set_reload_hold(False)
         self._enabled = False
         logger.info("[gunmancontracts] disabled")
 
-    def start(self, solenoid_recoil: Optional[Dict[str, Any]] = None) -> Tuple[bool, Optional[str]]:
-        self.enable(solenoid_recoil)
+    def start(
+        self,
+        solenoid_recoil: Optional[Dict[str, Any]] = None,
+        enabled_events: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[bool, Optional[str]]:
+        self.enable(solenoid_recoil, enabled_events=enabled_events)
         return True, None
 
     def stop(self) -> bool:
@@ -246,6 +359,25 @@ class GunmanContractsManager:
         if self.on_game_event:
             self.on_game_event(name, params)
 
+        # Control events always update heartbeat state when the toggle allows start.
+        if name == "heartbeat_start":
+            if self.is_event_enabled("heartbeat"):
+                self._start_heartbeat()
+            return True
+        if name == "heartbeat_stop":
+            self._stop_heartbeat()
+            return True
+
+        # Reload solenoid hold is independent of vest per-event toggles.
+        if self._solenoid_hold_on_reload:
+            if name in _RELOAD_HOLD_START_EVENTS:
+                self._set_reload_hold(True)
+            elif name in _RELOAD_HOLD_END_EVENTS:
+                self._set_reload_hold(False)
+
+        if not self.is_event_enabled(name):
+            return True
+
         for cell, speed in map_event_to_haptics(event):
             self._trigger(cell, speed)
 
@@ -265,3 +397,46 @@ class GunmanContractsManager:
         if not self.on_recoil:
             return
         self.on_recoil(int(duration_ms))
+
+    def _set_reload_hold(self, on: bool) -> None:
+        if bool(on) == bool(self._reload_hold_active):
+            return
+        self._reload_hold_active = bool(on)
+        if not self.on_recoil_hold:
+            return
+        try:
+            self.on_recoil_hold(bool(on))
+        except Exception as exc:
+            logger.warning("[gunmancontracts] reload hold failed: %s", exc)
+
+    def _start_heartbeat(self) -> None:
+        with self._heartbeat_lock:
+            if self._heartbeat_thread is not None and self._heartbeat_thread.is_alive():
+                return
+            self._heartbeat_stop.clear()
+            thread = threading.Thread(
+                target=self._heartbeat_loop,
+                name="gunmancontracts-heartbeat",
+                daemon=True,
+            )
+            self._heartbeat_thread = thread
+            thread.start()
+            logger.info("[gunmancontracts] low-health heartbeat started")
+
+    def _stop_heartbeat(self) -> None:
+        with self._heartbeat_lock:
+            self._heartbeat_stop.set()
+            thread = self._heartbeat_thread
+            self._heartbeat_thread = None
+        if thread is not None and thread.is_alive():
+            thread.join(timeout=1.5)
+            logger.info("[gunmancontracts] low-health heartbeat stopped")
+
+    def _heartbeat_loop(self) -> None:
+        # Immediate first pulse, then every interval until stopped.
+        while self._enabled and not self._heartbeat_stop.is_set():
+            if self.is_event_enabled("heartbeat"):
+                for cell, speed in map_event_to_haptics(GunmanContractsEvent(type="heartbeat")):
+                    self._trigger(cell, speed)
+            if self._heartbeat_stop.wait(_HEARTBEAT_INTERVAL_S):
+                break

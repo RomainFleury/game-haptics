@@ -6,7 +6,8 @@ Pulse helpers turn the relay on briefly then off (safe for solenoids).
 
 Safety:
 - Pulses are clamped to >= 25 ms (hardware often misses OFF below that)
-- Any ON arms a 1.0 s safety timer that forces OFF
+- Fire pulses arm a 1.0 s safety timer that forces OFF
+- Reload holds use a longer window (RELOAD_HOLD_SAFETY_S), hard-capped at MAX_SAFETY_OFF_S
 """
 
 from __future__ import annotations
@@ -24,6 +25,10 @@ from .recoil import MIN_RECOIL_MS, MAX_ON_MS
 logger = logging.getLogger(__name__)
 
 SAFETY_OFF_S = 1.0
+# Empty-slide reload can sit locked for several seconds before cock_forward / SetSlideBack.
+# Keep a hard cap so a missed release event cannot leave the solenoid energized forever.
+RELOAD_HOLD_SAFETY_S = 30.0
+MAX_SAFETY_OFF_S = 30.0
 
 
 @dataclass
@@ -137,14 +142,24 @@ class RelayController:
             self._port = None
             self._is_on = False
 
-    def set(self, on: bool) -> None:
-        """Turn the relay on or off (ON always arms the 1s safety OFF)."""
+    def set(self, on: bool, *, safety_s: Optional[float] = None) -> None:
+        """
+        Turn the relay on or off.
+
+        When turning ON, arms a safety OFF timer (default SAFETY_OFF_S, overridable
+        via safety_s, capped at MAX_SAFETY_OFF_S).
+        """
         with self._lock:
             self._ensure_connected()
             self._write_frame(on)
             self._is_on = on
             if on:
-                self._arm_safety_off()
+                timeout = SAFETY_OFF_S if safety_s is None else float(safety_s)
+                if timeout < SAFETY_OFF_S:
+                    timeout = SAFETY_OFF_S
+                if timeout > MAX_SAFETY_OFF_S:
+                    timeout = MAX_SAFETY_OFF_S
+                self._arm_safety_off(timeout)
             else:
                 self._cancel_safety_off()
 
@@ -172,7 +187,7 @@ class RelayController:
             self._ensure_connected()
             self._write_frame(True)
             self._is_on = True
-            self._arm_safety_off()
+            self._arm_safety_off(SAFETY_OFF_S)
             try:
                 time.sleep(duration_ms / 1000.0)
             finally:
@@ -182,9 +197,10 @@ class RelayController:
                     self._is_on = False
                     self._cancel_safety_off()
 
-    def _arm_safety_off(self) -> None:
-        """Schedule a forced OFF after SAFETY_OFF_S (must hold lock)."""
+    def _arm_safety_off(self, timeout_s: float = SAFETY_OFF_S) -> None:
+        """Schedule a forced OFF after timeout_s (must hold lock)."""
         self._cancel_safety_off()
+        timeout_s = float(timeout_s)
 
         def _fire() -> None:
             try:
@@ -196,12 +212,12 @@ class RelayController:
                     self._safety_timer = None
                     logger.warning(
                         "Relay safety OFF after %.1fs — forced de-energize",
-                        SAFETY_OFF_S,
+                        timeout_s,
                     )
             except Exception as exc:
                 logger.warning("Relay safety OFF failed: %s", exc)
 
-        timer = threading.Timer(SAFETY_OFF_S, _fire)
+        timer = threading.Timer(timeout_s, _fire)
         timer.daemon = True
         self._safety_timer = timer
         timer.start()

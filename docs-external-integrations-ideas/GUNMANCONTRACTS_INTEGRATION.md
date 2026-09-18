@@ -2,7 +2,7 @@
 
 > **Status: BETA** (MelonLoader mod untested in-game)
 >
-> Harmony patches are adapted from [GunmanContracts_bhaptics](https://github.com/floh-bhaptics/GunmanContracts_bhaptics).
+> Harmony patches are adapted from [GunmanContracts_bhaptics](https://github.com/floh-bhaptics/GunmanContracts_bhaptics) (v1.1.0).
 > Solenoid / Provolver-style fire recoil is inspired by [GunmanContracts_Provolver](https://github.com/Astienth/GunmanContracts_Provolver) (fire + dual wield; no public source — we use bHaptics `OnFire` for fire events).
 > The game connects to the daemon as a TCP client on port 5050.
 
@@ -12,11 +12,19 @@ Gunman Contracts Standalone is a VR shooter by ANB_Seth (Steam App ID **2421750*
 
 | Class | Method | Our event |
 |-------|--------|-----------|
-| `ANBHVRGunBase` | `OnFire()` | `gun_fire` / `shotgun_fire` / `rifle_fire` (skip `EnemyGun` / `isBow`) |
+| `ANBHVRGunBase` | `OnFire()` / `FPSshoot()` | `gun_fire` / `shotgun_fire` / `rifle_fire` (skip `EnemyGun` / `isBow`) |
 | `HVRPhysicsBow` | `ShootArrow()` | `bow_fire` |
 | `ANBGameLogic` | `HurtPlayer()` | `player_hit` (directional angle) |
 | `ANBGameLogic` | `holsterGun()` / `unholsterGun()` | `holster_in` / `holster_out` |
-| Melon init | `OnInitializeMelon` | `heartbeat` (once) |
+| `ANBGameLogic` | `holsterKnife()` / `unholsterKnife()` | `holster_in` / `holster_out` |
+| `ANBHVRGunBase` | `ReleaseAmmo()` / `OnHandGrabbed()` | `mag_eject` |
+| `ANBHVRGunBase` | `OnAmmoSocketed()` / `AddShotgunShell()` | `reload` |
+| `ANBHVRGunBase` | `OnCockingHandleEjected()` / `OnCockingHandleReleased()` | `cock_back` / `cock_forward` |
+| `ANBAmmoBag` / `ANBGameLogic` | pouch + ammo credit/substract + pickups | `ammo_pouch` |
+| `ANBSFXPlayerManager` | `TakeDamageLastHP()` | `heartbeat_start` (daemon loops) |
+| `ANBSFXPlayerManager` | `Heal()` | `heartbeat_stop` + `healing` |
+| `ANBGameLogic` | `PlayerDeadCall()` / `endRun()` | `heartbeat_stop` |
+| Melon init | `OnInitializeMelon` | `heartbeat` (once, connectivity) |
 
 `MelonGame`: `"ANB_Seth"`, `"GunmanContracts"`.
 
@@ -41,9 +49,16 @@ Gunman Contracts Standalone (Unity/Il2Cpp)
 | `rifle_fire` | 2 | Arm cells, speed 6 | `FireType.Automatic`; solenoid (`rifle`) |
 | `bow_fire` | 2 | Arm for hand | From `HVRPhysicsBow.ShootArrow` |
 | `player_hit` | 3 | Front / left / back / right from angle | 0° front, 90° left; omit angle if unknown |
-| `holster_in` | 1 | Lower front (hip) or upper back (shoulder) | Optional `holster`: `hip` \| `shoulder` |
-| `holster_out` | 1 | Same as holster_in | Side string `right`/`backRight` → right hand |
-| `heartbeat` | 0 | Both front lower, speed 2 | Sent once on mod init |
+| `holster_in` / `holster_out` | 1 | Lower front (hip) or upper back (shoulder) | Guns + knives; `holster`: `hip` \| `shoulder` |
+| `mag_eject` | 1 | Arm for hand | Mag release / grab |
+| `reload` | 1 | Lower front hip | Mag socketed / shotgun shell |
+| `cock_back` / `cock_forward` | 1 | Arm for hand | Cocking handle |
+| `ammo_pouch` | 0–1 | Both upper front | Chest pouch + collectibles |
+| `heartbeat` | 0 | Both front lower, speed 2 | One-shot on mod init |
+| `heartbeat_start` / `heartbeat_stop` | 1 | (control) | Low-HP loop in daemon (~1 Hz) |
+| `healing` | 1 | Lower torso | On heal after last HP |
+
+Per-event enable/disable is available on the Gunman Contracts integration page (defaults: all ON). Changes apply on the next Start.
 
 ## Solenoid recoil note
 

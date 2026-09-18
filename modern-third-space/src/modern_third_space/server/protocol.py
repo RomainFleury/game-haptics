@@ -235,6 +235,9 @@ class Command:
     on: Optional[bool] = None  # Relay on/off for relay_set
     duration_ms: Optional[int] = None  # Pulse duration for relay_pulse
     solenoid_recoil: Optional[Dict[str, Any]] = None  # {"enabled": bool, "duration_ms": int}
+    # Per-event haptics gating for TCP game integrations (e.g. gunmancontracts_start).
+    # Expected schema: { "gun_fire": true, "player_hit": false, ... }
+    enabled_events: Optional[Dict[str, Any]] = None
     fire_mode: Optional[str] = None  # single | burst | fullauto
     fire_rate_rpm: Optional[int] = None  # rounds per minute
     burst_count: Optional[int] = None  # shots per burst
@@ -281,6 +284,7 @@ class Command:
             on=data.get("on"),
             duration_ms=data.get("duration_ms"),
             solenoid_recoil=data.get("solenoid_recoil"),
+            enabled_events=data.get("enabled_events"),
             fire_mode=data.get("fire_mode"),
             fire_rate_rpm=data.get("fire_rate_rpm"),
             burst_count=data.get("burst_count"),

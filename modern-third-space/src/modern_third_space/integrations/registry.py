@@ -228,7 +228,10 @@ register_integration(GameIntegrationSpec(
     ],
     event_types=[
         "gun_fire", "shotgun_fire", "rifle_fire", "bow_fire",
-        "player_hit", "holster_in", "holster_out", "heartbeat",
+        "player_hit", "holster_in", "holster_out",
+        "mag_eject", "reload", "cock_back", "cock_forward",
+        "slide_lock", "slide_release",
+        "ammo_pouch", "heartbeat", "heartbeat_start", "heartbeat_stop", "healing",
     ],
     has_directional_damage=True,
     docs_file="docs-external-integrations-ideas/GUNMANCONTRACTS_INTEGRATION.md",

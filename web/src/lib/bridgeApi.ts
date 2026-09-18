@@ -148,6 +148,8 @@ export type AlyxBrowseResult = {
 export type SolenoidRecoilSettings = {
   enabled: boolean;
   durationMs: number;
+  /** Gunman Contracts: hold relay on cock_back, release on cock_forward */
+  holdOnReload?: boolean;
 };
 
 export type AlyxSettingsResult = {
@@ -580,11 +582,15 @@ declare global {
         success: boolean;
         gameDir?: string | null;
         solenoidRecoil?: SolenoidRecoilSettings;
+        enabledEvents?: Record<string, boolean>;
         error?: string;
       }>;
       gunmancontractsSetSolenoidRecoil: (
         solenoidRecoil: Partial<SolenoidRecoilSettings>
       ) => Promise<{ success: boolean; solenoidRecoil?: SolenoidRecoilSettings; error?: string }>;
+      gunmancontractsSetEnabledEvents: (
+        enabledEvents: Record<string, boolean>
+      ) => Promise<{ success: boolean; enabledEvents?: Record<string, boolean>; error?: string }>;
       gunmancontractsBrowseGameDir: () => Promise<{
         success: boolean;
         gameDir?: string;
@@ -1226,6 +1232,7 @@ export async function gunmancontractsGetSettings(): Promise<{
   success: boolean;
   gameDir?: string | null;
   solenoidRecoil?: SolenoidRecoilSettings;
+  enabledEvents?: Record<string, boolean>;
   error?: string;
 }> {
   return await ensureBridge().gunmancontractsGetSettings();
@@ -1235,6 +1242,12 @@ export async function gunmancontractsSetSolenoidRecoil(
   solenoidRecoil: Partial<SolenoidRecoilSettings>
 ): Promise<{ success: boolean; solenoidRecoil?: SolenoidRecoilSettings; error?: string }> {
   return await ensureBridge().gunmancontractsSetSolenoidRecoil(solenoidRecoil);
+}
+
+export async function gunmancontractsSetEnabledEvents(
+  enabledEvents: Record<string, boolean>
+): Promise<{ success: boolean; enabledEvents?: Record<string, boolean>; error?: string }> {
+  return await ensureBridge().gunmancontractsSetEnabledEvents(enabledEvents);
 }
 
 export async function gunmancontractsBrowseGameDir(): Promise<{

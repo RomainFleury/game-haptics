@@ -8,8 +8,40 @@ const path = require("path");
 
 const SETTINGS_FILE = "gunmancontracts-settings.json";
 
+/** Defaults: all feedback ON (unlike Alyx which is opt-in). */
+const DEFAULT_ENABLED_EVENTS = {
+  gun_fire: true,
+  shotgun_fire: true,
+  rifle_fire: true,
+  bow_fire: true,
+  player_hit: true,
+  holster_in: true,
+  holster_out: true,
+  mag_eject: true,
+  reload: true,
+  cock_back: true,
+  cock_forward: true,
+  slide_lock: true,
+  slide_release: true,
+  ammo_pouch: true,
+  heartbeat: true,
+  healing: true,
+};
+
 function getSettingsPath() {
   return path.join(app.getPath("userData"), SETTINGS_FILE);
+}
+
+function normalizeEnabledEvents(raw) {
+  const merged = { ...DEFAULT_ENABLED_EVENTS };
+  if (raw && typeof raw === "object") {
+    for (const [k, v] of Object.entries(raw)) {
+      if (typeof k === "string" && Object.prototype.hasOwnProperty.call(merged, k)) {
+        merged[k] = Boolean(v);
+      }
+    }
+  }
+  return merged;
 }
 
 function loadSettings() {
@@ -44,7 +76,21 @@ function getGunmanContractsSolenoidRecoil() {
       typeof solenoid.durationMs === "number" && Number.isFinite(solenoid.durationMs)
         ? Math.max(25, Math.min(120, Math.round(solenoid.durationMs)))
         : 40,
+    holdOnReload:
+      solenoid.holdOnReload !== undefined ? Boolean(solenoid.holdOnReload) : false,
   };
+}
+
+function getGunmanContractsEnabledEvents() {
+  const settings = loadSettings();
+  return normalizeEnabledEvents(settings.enabledEvents);
+}
+
+function setGunmanContractsEnabledEvents(enabledEvents) {
+  const settings = loadSettings();
+  settings.enabledEvents = normalizeEnabledEvents(enabledEvents);
+  saveSettings(settings);
+  return settings.enabledEvents;
 }
 
 function getGunmanContractsGameDir() {
@@ -70,14 +116,21 @@ function setGunmanContractsSolenoidRecoil(solenoidRecoil) {
       solenoidRecoil && typeof solenoidRecoil.durationMs === "number"
         ? Math.max(25, Math.min(120, Math.round(solenoidRecoil.durationMs)))
         : current.durationMs,
+    holdOnReload:
+      solenoidRecoil && solenoidRecoil.holdOnReload !== undefined
+        ? Boolean(solenoidRecoil.holdOnReload)
+        : current.holdOnReload,
   };
   saveSettings(settings);
   return settings.solenoidRecoil;
 }
 
 module.exports = {
+  DEFAULT_ENABLED_EVENTS,
   getGunmanContractsGameDir,
   setGunmanContractsGameDir,
   getGunmanContractsSolenoidRecoil,
   setGunmanContractsSolenoidRecoil,
+  getGunmanContractsEnabledEvents,
+  setGunmanContractsEnabledEvents,
 };

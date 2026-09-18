@@ -21,7 +21,49 @@ const EVENT_DISPLAY_MAP: Record<string, EventDisplayInfo> = {
   player_hit: { label: "Hit Taken", icon: "💥", color: "text-red-400" },
   holster_in: { label: "Holster In", icon: "⬇️", color: "text-blue-300" },
   holster_out: { label: "Holster Out", icon: "⬆️", color: "text-blue-400" },
-  heartbeat: { label: "Heartbeat", icon: "❤️", color: "text-pink-400" },
+  mag_eject: { label: "Mag Eject", icon: "📤", color: "text-cyan-300" },
+  reload: { label: "Reload", icon: "🔄", color: "text-cyan-400" },
+  cock_back: { label: "Cock Slide Back", icon: "⬅️", color: "text-indigo-300" },
+  cock_forward: { label: "Cock Slide Forward", icon: "➡️", color: "text-indigo-400" },
+  slide_lock: { label: "Slide Lock (Empty)", icon: "🔒", color: "text-rose-300" },
+  slide_release: { label: "Slide Release", icon: "🔓", color: "text-rose-400" },
+  ammo_pouch: { label: "Chest Ammo Pouch", icon: "🎒", color: "text-teal-300" },
+  heartbeat: { label: "Low Health Heartbeat", icon: "❤️", color: "text-pink-400" },
+  heartbeat_start: { label: "Heartbeat Start", icon: "❤️", color: "text-pink-300" },
+  heartbeat_stop: { label: "Heartbeat Stop", icon: "💔", color: "text-pink-500" },
+  healing: { label: "Healing", icon: "💚", color: "text-green-400" },
+  empty_fire: { label: "Empty Click", icon: "🔘", color: "text-slate-400" },
+};
+
+/** Toggle order on the integration page (control events share the heartbeat toggle). */
+const EFFECT_TOGGLE_ORDER: string[] = [
+  "gun_fire",
+  "shotgun_fire",
+  "rifle_fire",
+  "bow_fire",
+  "player_hit",
+  "holster_in",
+  "holster_out",
+  "mag_eject",
+  "reload",
+  "cock_back",
+  "cock_forward",
+  "slide_lock",
+  "slide_release",
+  "ammo_pouch",
+  "heartbeat",
+  "healing",
+];
+
+const EVENT_TOGGLE_HINTS: Record<string, string> = {
+  holster_in: "Guns and knives",
+  holster_out: "Guns and knives",
+  mag_eject: "Release mag / grab",
+  reload: "Mag insert / shotgun shell",
+  slide_lock: "Last round — slide stays open",
+  slide_release: "Slide pushed forward on empty reload",
+  ammo_pouch: "Chest pouch + pickups",
+  heartbeat: "Loops on last health bar",
 };
 
 function formatEventDetails(event: GameEvent): string {
@@ -41,6 +83,9 @@ export function GunmanContractsIntegrationPage() {
     gameEvents,
     solenoidRecoil,
     setSolenoidRecoilSettings,
+    enabledEvents,
+    setEventEnabled,
+    restartRequired,
     gameDir,
     modStatus,
     browseGameDir,
@@ -115,12 +160,12 @@ export function GunmanContractsIntegrationPage() {
       <div>
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium text-slate-200">Solenoid recoil</h3>
-          <span className="text-xs text-slate-500">Pulses on pistol, shotgun, and rifle fire</span>
+          <span className="text-xs text-slate-500">USB relay on the Recoil page</span>
         </div>
         <label className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-slate-900/40 border border-slate-700/40 px-3 py-2">
           <div className="min-w-0">
             <div className="text-sm text-slate-200">Pulse USB relay on fire</div>
-            <div className="text-xs text-slate-500">Requires a device connected on the Recoil page</div>
+            <div className="text-xs text-slate-500">Short pulse on pistol / shotgun / rifle fire</div>
           </div>
           <input
             type="checkbox"
@@ -129,8 +174,23 @@ export function GunmanContractsIntegrationPage() {
             className="h-4 w-4"
           />
         </label>
+        <label className="mt-2 flex items-center justify-between gap-3 rounded-lg bg-slate-900/40 border border-slate-700/40 px-3 py-2">
+          <div className="min-w-0">
+            <div className="text-sm text-slate-200">Hold USB relay on empty slide lock</div>
+            <div className="text-xs text-slate-500">
+              ON at `slide_lock` (last round). OFF at `SetSlideBack(0)` / `cock_forward` when the slide
+              is pushed forward — not at reload button press.
+            </div>
+          </div>
+          <input
+            type="checkbox"
+            checked={Boolean(solenoidRecoil.holdOnReload)}
+            onChange={(e) => setSolenoidRecoilSettings({ holdOnReload: e.target.checked })}
+            className="h-4 w-4"
+          />
+        </label>
         <label className="mt-2 block space-y-1.5 max-w-xs">
-          <span className="text-xs text-slate-400">Base pulse (ms)</span>
+          <span className="text-xs text-slate-400">Base fire pulse (ms)</span>
           <input
             type="number"
             min={25}
@@ -144,9 +204,50 @@ export function GunmanContractsIntegrationPage() {
             className="w-full rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-sm text-white"
           />
         </label>
-        <p className="text-xs text-amber-300/80 mt-2">
-          Stop and Start the integration after changing these settings.
-        </p>
+      </div>
+
+      <div className="pt-2 border-t border-slate-700/60">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium text-slate-200">Haptics (per-event)</h3>
+          <span className="text-xs text-slate-500">Defaults: all ON</span>
+        </div>
+
+        {restartRequired && status.running && (
+          <div className="mt-3 rounded-lg bg-amber-900/20 border border-amber-700/30 px-3 py-2 text-xs text-amber-200">
+            Settings saved. Stop and Start the integration to apply changes.
+          </div>
+        )}
+
+        {!enabledEvents ? (
+          <p className="mt-3 text-sm text-slate-500">Loading settings…</p>
+        ) : (
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+            {EFFECT_TOGGLE_ORDER.map((eventType) => {
+              const checked = Boolean(enabledEvents[eventType]);
+              const label = EVENT_DISPLAY_MAP[eventType]?.label || eventType;
+              const hint = EVENT_TOGGLE_HINTS[eventType];
+              return (
+                <label
+                  key={eventType}
+                  className="flex items-center justify-between gap-3 rounded-lg bg-slate-900/40 border border-slate-700/40 px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm text-slate-200 truncate">{label}</div>
+                    <div className="text-xs text-slate-500 font-mono truncate">
+                      {hint || eventType}
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => void setEventEnabled(eventType, e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                </label>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -155,7 +256,7 @@ export function GunmanContractsIntegrationPage() {
     <div className="space-y-3 text-sm">
       <p className="text-slate-300">
         Gunman Contracts Standalone talks to the daemon over TCP 5050. A MelonLoader mod inside the game
-        sends fire, bow, hit, and holster events.
+        sends fire, holster, reload, cocking, pouch, hit, and low-health heartbeat events.
       </p>
       <ol className="list-decimal list-inside space-y-2 text-slate-400">
         <li>

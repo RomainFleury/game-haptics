@@ -226,6 +226,7 @@ class VestDaemon:
             on_game_event=self._on_gunmancontracts_game_event,
             on_trigger=self._on_gunmancontracts_trigger,
             on_recoil=self._on_solenoid_recoil,
+            on_recoil_hold=self._on_solenoid_hold,
         )
 
         # Generic Screen Health Watcher manager
@@ -1488,6 +1489,25 @@ class VestDaemon:
                 )
         except Exception as exc:
             logger.warning("Solenoid recoil pulse failed: %s", exc)
+
+    def _on_solenoid_hold(self, on: bool) -> None:
+        """
+        Hold or release the USB LC relay (reload cock_back → ON, cock_forward → OFF).
+
+        Uses RELOAD_HOLD_SAFETY_S (30s) so slow empty reloads can finish before the hard safety OFF.
+        """
+        status = self._relay.status()
+        if not status.connected:
+            return
+        try:
+            from ..relay.controller import RELOAD_HOLD_SAFETY_S
+
+            if on:
+                self._relay.set(True, safety_s=RELOAD_HOLD_SAFETY_S)
+            else:
+                self._relay.set(False)
+        except Exception as exc:
+            logger.warning("Solenoid reload hold failed: %s", exc)
     
     # -------------------------------------------------------------------------
     # Left 4 Dead 2 commands
@@ -1690,7 +1710,10 @@ class VestDaemon:
             asyncio.run_coroutine_threadsafe(self._clients.broadcast(event), self._loop)
 
     async def _cmd_gunmancontracts_start(self, command: Command) -> Response:
-        success, error = self._gunmancontracts_manager.start(solenoid_recoil=command.solenoid_recoil)
+        success, error = self._gunmancontracts_manager.start(
+            solenoid_recoil=command.solenoid_recoil,
+            enabled_events=command.enabled_events,
+        )
         if success:
             await self._clients.broadcast(event_gunmancontracts_started())
             return response_gunmancontracts_start(success=True, req_id=command.req_id)

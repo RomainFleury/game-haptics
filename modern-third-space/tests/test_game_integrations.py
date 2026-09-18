@@ -500,7 +500,7 @@ class TestIntegrationSnapshot:
             "integration_type": "tcp_client",
             "status": "beta",
             "has_manager": True,
-            "event_count_min": 8,
+            "event_count_min": 16,
         },
         "screen_health": {
             "game_name": "Generic Screen Health (Screen Capture)",

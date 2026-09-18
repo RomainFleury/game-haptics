@@ -4,7 +4,7 @@ using System;
 using System.IO;
 using System.Reflection;
 
-[assembly: MelonInfo(typeof(ThirdSpace_GunmanContracts.ThirdSpace_GunmanContracts), "ThirdSpace_GunmanContracts", "1.0.0", "ThirdSpace")]
+[assembly: MelonInfo(typeof(ThirdSpace_GunmanContracts.ThirdSpace_GunmanContracts), "ThirdSpace_GunmanContracts", "1.1.4", "ThirdSpace")]
 [assembly: MelonGame("ANB_Seth", "GunmanContracts")]
 
 namespace ThirdSpace_GunmanContracts
@@ -49,7 +49,9 @@ namespace ThirdSpace_GunmanContracts
                 ?? AccessTools.TypeByName("Il2Cpp." + name)
                 ?? AccessTools.TypeByName("Il2CppHurricaneVR.Framework.Weapons.Guns." + name)
                 ?? AccessTools.TypeByName("Il2CppHurricaneVR.Framework.Weapons.Bow." + name)
-                ?? AccessTools.TypeByName("Il2CppHurricaneVR.Framework.Core." + name);
+                ?? AccessTools.TypeByName("Il2CppHurricaneVR.Framework.Core." + name)
+                ?? AccessTools.TypeByName("Il2CppKnifePlayerController." + name)
+                ?? AccessTools.TypeByName("Il2CppInfimaGames.LowPolyShooterPack." + name);
         }
 
         internal static MethodBase FindMethod(string typeName, string methodName)
@@ -63,6 +65,23 @@ namespace ThirdSpace_GunmanContracts
             var method = AccessTools.Method(type, methodName);
             if (method == null)
                 MelonLogger.Warning("[ThirdSpace] Method not found: " + typeName + "." + methodName + " (patch skipped)");
+            else
+                MelonLogger.Msg("[ThirdSpace] Patch target OK: " + type.FullName + "." + methodName);
+            return method;
+        }
+
+        /// <summary>Resolve by full CLR type name (avoids ambiguous short names like Character).</summary>
+        internal static MethodBase FindMethodExact(string fullTypeName, string methodName)
+        {
+            var type = AccessTools.TypeByName(fullTypeName);
+            if (type == null)
+            {
+                MelonLogger.Warning("[ThirdSpace] Type not found: " + fullTypeName + " (patch skipped)");
+                return null;
+            }
+            var method = AccessTools.Method(type, methodName);
+            if (method == null)
+                MelonLogger.Warning("[ThirdSpace] Method not found: " + fullTypeName + "." + methodName + " (patch skipped)");
             else
                 MelonLogger.Msg("[ThirdSpace] Patch target OK: " + type.FullName + "." + methodName);
             return method;
@@ -213,6 +232,43 @@ namespace ThirdSpace_GunmanContracts
             return "hip";
         }
 
+        /// <summary>
+        /// Map ANBHVRGunBase.gunInHand ("Right" / "Left" / "none") to our hand string.
+        /// </summary>
+        internal static string HandFromGunInHand(object gun)
+        {
+            var raw = GetMember(gun, "gunInHand");
+            if (raw == null) return null;
+            string text = raw.ToString() ?? "";
+            if (string.Equals(text, "none", StringComparison.OrdinalIgnoreCase)) return null;
+            if (string.Equals(text, "Right", StringComparison.OrdinalIgnoreCase)) return "right";
+            if (string.Equals(text, "Left", StringComparison.OrdinalIgnoreCase)) return "left";
+            return null;
+        }
+
+        internal static void EmitHolster(string eventName, string side)
+        {
+            if (daemon == null || !daemon.IsConnected) return;
+            string hand = HandFromSide(side);
+            string holster = HolsterFromSide(side);
+            daemon.SendEvent(eventName, hand, priority: 1, holster: holster);
+            MelonLogger.Msg("[ThirdSpace] Event: " + eventName + " (" + hand + ", " + holster + ")");
+        }
+
+        internal static void EmitGunHandEvent(object gun, string eventName, int priority, bool skipIfNoHand = false)
+        {
+            if (daemon == null || !daemon.IsConnected) return;
+            if (gun == null) return;
+            string hand = HandFromGunInHand(gun);
+            if (hand == null)
+            {
+                if (skipIfNoHand) return;
+                hand = ResolveFireHand(gun);
+            }
+            daemon.SendEvent(eventName, hand, priority: priority);
+            MelonLogger.Msg("[ThirdSpace] Event: " + eventName + " (" + hand + ")");
+        }
+
         internal static string HandFromGrabbable(object primaryGrab)
         {
             if (primaryGrab == null) return null;
@@ -255,6 +311,10 @@ namespace ThirdSpace_GunmanContracts
             return text.IndexOf("Automatic", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
+        // OnFire + FPSshoot often fire together in flatscreen; keep one haptic pulse.
+        private static DateTime _lastFireEmitUtc = DateTime.MinValue;
+        private static readonly TimeSpan FireDebounce = TimeSpan.FromMilliseconds(45);
+
         /// <summary>
         /// Shared emit for VR OnFire and flatscreen FPSshoot.
         /// </summary>
@@ -265,6 +325,10 @@ namespace ThirdSpace_GunmanContracts
             if (GetBool(gun, "EnemyGun")) return;
             if (GetBool(gun, "isBow")) return;
 
+            DateTime now = DateTime.UtcNow;
+            if (now - _lastFireEmitUtc < FireDebounce) return;
+            _lastFireEmitUtc = now;
+
             string hand = ResolveFireHand(gun);
 
             string eventName = "gun_fire";
@@ -274,6 +338,13 @@ namespace ThirdSpace_GunmanContracts
                 eventName = "rifle_fire";
 
             daemon.SendEvent(eventName, hand, priority: 2);
+            MelonLogger.Msg("[ThirdSpace] Event: " + eventName + " (" + hand + ", via " + source + ")");
+        }
+
+        internal static void EmitSimple(string eventName, string hand, int priority, string source)
+        {
+            if (daemon == null || !daemon.IsConnected) return;
+            daemon.SendEvent(eventName, hand, priority: priority);
             MelonLogger.Msg("[ThirdSpace] Event: " + eventName + " (" + hand + ", via " + source + ")");
         }
 
@@ -313,11 +384,7 @@ namespace ThirdSpace_GunmanContracts
             [HarmonyPostfix]
             public static void Postfix(string side, object tmpGBS)
             {
-                if (daemon == null || !daemon.IsConnected) return;
-                string hand = HandFromSide(side);
-                string holster = HolsterFromSide(side);
-                daemon.SendEvent("holster_in", hand, priority: 1, holster: holster);
-                MelonLogger.Msg("[ThirdSpace] Event: holster_in (" + hand + ", " + holster + ")");
+                EmitHolster("holster_in", side);
             }
         }
 
@@ -330,11 +397,33 @@ namespace ThirdSpace_GunmanContracts
             [HarmonyPostfix]
             public static void Postfix(string side, object tmpGBS)
             {
-                if (daemon == null || !daemon.IsConnected) return;
-                string hand = HandFromSide(side);
-                string holster = HolsterFromSide(side);
-                daemon.SendEvent("holster_out", hand, priority: 1, holster: holster);
-                MelonLogger.Msg("[ThirdSpace] Event: holster_out (" + hand + ", " + holster + ")");
+                EmitHolster("holster_out", side);
+            }
+        }
+
+        [HarmonyPatch]
+        public class Patch_HolsterKnife
+        {
+            static bool Prepare() => FindMethod("ANBGameLogic", "holsterKnife") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBGameLogic", "holsterKnife");
+
+            [HarmonyPostfix]
+            public static void Postfix(string side)
+            {
+                EmitHolster("holster_in", side);
+            }
+        }
+
+        [HarmonyPatch]
+        public class Patch_UnholsterKnife
+        {
+            static bool Prepare() => FindMethod("ANBGameLogic", "unholsterKnife") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBGameLogic", "unholsterKnife");
+
+            [HarmonyPostfix]
+            public static void Postfix(string side)
+            {
+                EmitHolster("holster_out", side);
             }
         }
 
@@ -356,8 +445,7 @@ namespace ThirdSpace_GunmanContracts
         }
 
         /// <summary>
-        /// Flatscreen / non-VR fire path. VR grabbers are absent, so OnFire alone may never
-        /// emit usable hand info — and some FPS weapons call FPSshoot instead of OnFire.
+        /// Flatscreen / non-VR fire path. Debounced with OnFire when both fire together.
         /// </summary>
         [HarmonyPatch]
         public class Patch_FPSShoot
@@ -372,6 +460,85 @@ namespace ThirdSpace_GunmanContracts
                 catch (Exception ex)
                 {
                     MelonLogger.Warning("[ThirdSpace] FPSshoot handler failed: " + ex.Message);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Empty-mag slide lock. ANBHVRGunBase.OnOutOfAmmo fires when the last round is spent
+        /// and the slide/cocking handle locks back — this is the hold-start signal for 2D/FPS.
+        /// </summary>
+        [HarmonyPatch]
+        public class Patch_OnOutOfAmmo
+        {
+            static bool Prepare() => FindMethod("ANBHVRGunBase", "OnOutOfAmmo") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBHVRGunBase", "OnOutOfAmmo");
+
+            [HarmonyPostfix]
+            public static void Postfix(object __instance)
+            {
+                try { EmitGunHandEvent(__instance, "slide_lock", priority: 2); }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning("[ThirdSpace] OnOutOfAmmo handler failed: " + ex.Message);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Infima SetSlideBack(0) is the reliable "slide pushed forward" signal during empty reload.
+        /// Do NOT use FPSReleaseSlide/releaseSlide for hold-end — they fire at reload *start*.
+        /// </summary>
+        [HarmonyPatch]
+        public class Patch_SetSlideBack
+        {
+            static bool Prepare() =>
+                FindMethodExact("Il2CppInfimaGames.LowPolyShooterPack.Character", "SetSlideBack") != null;
+            static MethodBase TargetMethod() =>
+                FindMethodExact("Il2CppInfimaGames.LowPolyShooterPack.Character", "SetSlideBack");
+
+            [HarmonyPostfix]
+            public static void Postfix(int back)
+            {
+                if (back == 0)
+                    EmitSimple("slide_release", "right", priority: 2, "SetSlideBack(0)");
+                else
+                    EmitSimple("slide_lock", "right", priority: 2, "SetSlideBack(" + back + ")");
+            }
+        }
+
+        /// <summary>2D/FPS: magazine out during reload.</summary>
+        [HarmonyPatch]
+        public class Patch_FPSReloadMagout
+        {
+            static bool Prepare() => FindMethod("ANBFpsWeapons", "FPSReloadMagout") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBFpsWeapons", "FPSReloadMagout");
+
+            [HarmonyPostfix]
+            public static void Postfix(object __instance, object __0)
+            {
+                try { EmitGunHandEvent(__0, "mag_eject", priority: 1); }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning("[ThirdSpace] FPSReloadMagout handler failed: " + ex.Message);
+                }
+            }
+        }
+
+        /// <summary>2D/FPS: magazine in during reload.</summary>
+        [HarmonyPatch]
+        public class Patch_FPSReloadMagin
+        {
+            static bool Prepare() => FindMethod("ANBFpsWeapons", "FPSReloadMagin") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBFpsWeapons", "FPSReloadMagin");
+
+            [HarmonyPostfix]
+            public static void Postfix(object __instance, object __0)
+            {
+                try { EmitGunHandEvent(__0, "reload", priority: 1); }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning("[ThirdSpace] FPSReloadMagin handler failed: " + ex.Message);
                 }
             }
         }
@@ -398,6 +565,245 @@ namespace ThirdSpace_GunmanContracts
                 {
                     MelonLogger.Warning("[ThirdSpace] ShootArrow handler failed: " + ex.Message);
                 }
+            }
+        }
+
+        [HarmonyPatch]
+        public class Patch_ReleaseAmmo
+        {
+            static bool Prepare() => FindMethod("ANBHVRGunBase", "ReleaseAmmo") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBHVRGunBase", "ReleaseAmmo");
+
+            [HarmonyPostfix]
+            public static void Postfix(object __instance)
+            {
+                try { EmitGunHandEvent(__instance, "mag_eject", priority: 1); }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning("[ThirdSpace] ReleaseAmmo handler failed: " + ex.Message);
+                }
+            }
+        }
+
+        [HarmonyPatch]
+        public class Patch_AmmoSocketed
+        {
+            static bool Prepare() => FindMethod("ANBHVRGunBase", "OnAmmoSocketed") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBHVRGunBase", "OnAmmoSocketed");
+
+            [HarmonyPostfix]
+            public static void Postfix(object __instance)
+            {
+                try { EmitGunHandEvent(__instance, "reload", priority: 1, skipIfNoHand: true); }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning("[ThirdSpace] OnAmmoSocketed handler failed: " + ex.Message);
+                }
+            }
+        }
+
+        [HarmonyPatch]
+        public class Patch_HandGrabbed
+        {
+            static bool Prepare() => FindMethod("ANBHVRGunBase", "OnHandGrabbed") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBHVRGunBase", "OnHandGrabbed");
+
+            [HarmonyPostfix]
+            public static void Postfix(object __instance)
+            {
+                // Upstream bhaptics plays eject-mag on hand grab (mag / charge-handle grab feel).
+                try { EmitGunHandEvent(__instance, "mag_eject", priority: 1); }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning("[ThirdSpace] OnHandGrabbed handler failed: " + ex.Message);
+                }
+            }
+        }
+
+        [HarmonyPatch]
+        public class Patch_AddShotgunShell
+        {
+            static bool Prepare() => FindMethod("ANBHVRGunBase", "AddShotgunShell") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBHVRGunBase", "AddShotgunShell");
+
+            [HarmonyPostfix]
+            public static void Postfix(object __instance)
+            {
+                try { EmitGunHandEvent(__instance, "reload", priority: 1); }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning("[ThirdSpace] AddShotgunShell handler failed: " + ex.Message);
+                }
+            }
+        }
+
+        [HarmonyPatch]
+        public class Patch_CockEjected
+        {
+            static bool Prepare() => FindMethod("ANBHVRGunBase", "OnCockingHandleEjected") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBHVRGunBase", "OnCockingHandleEjected");
+
+            [HarmonyPostfix]
+            public static void Postfix(object __instance)
+            {
+                try { EmitGunHandEvent(__instance, "cock_back", priority: 1); }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning("[ThirdSpace] OnCockingHandleEjected handler failed: " + ex.Message);
+                }
+            }
+        }
+
+        [HarmonyPatch]
+        public class Patch_CockReleased
+        {
+            static bool Prepare() => FindMethod("ANBHVRGunBase", "OnCockingHandleReleased") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBHVRGunBase", "OnCockingHandleReleased");
+
+            [HarmonyPostfix]
+            public static void Postfix(object __instance)
+            {
+                try { EmitGunHandEvent(__instance, "cock_forward", priority: 1); }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning("[ThirdSpace] OnCockingHandleReleased handler failed: " + ex.Message);
+                }
+            }
+        }
+
+        [HarmonyPatch]
+        public class Patch_AmmoPouchRemove
+        {
+            static bool Prepare() => FindMethod("ANBAmmoBag", "removeAmmoCount") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBAmmoBag", "removeAmmoCount");
+
+            [HarmonyPostfix]
+            public static void Postfix()
+            {
+                if (daemon == null || !daemon.IsConnected) return;
+                daemon.SendEvent("ammo_pouch", priority: 1);
+                MelonLogger.Msg("[ThirdSpace] Event: ammo_pouch");
+            }
+        }
+
+        [HarmonyPatch]
+        public class Patch_CreditAmmo
+        {
+            static bool Prepare() => FindMethod("ANBGameLogic", "creditAmmo") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBGameLogic", "creditAmmo");
+
+            [HarmonyPostfix]
+            public static void Postfix()
+            {
+                if (daemon == null || !daemon.IsConnected) return;
+                daemon.SendEvent("ammo_pouch", priority: 1);
+                MelonLogger.Msg("[ThirdSpace] Event: ammo_pouch (credit)");
+            }
+        }
+
+        [HarmonyPatch]
+        public class Patch_SubstractAmmo
+        {
+            static bool Prepare() => FindMethod("ANBGameLogic", "substractAmmo") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBGameLogic", "substractAmmo");
+
+            [HarmonyPostfix]
+            public static void Postfix()
+            {
+                if (daemon == null || !daemon.IsConnected) return;
+                daemon.SendEvent("ammo_pouch", priority: 1);
+                MelonLogger.Msg("[ThirdSpace] Event: ammo_pouch (substract)");
+            }
+        }
+
+        [HarmonyPatch]
+        public class Patch_Collectible
+        {
+            static bool Prepare() => FindMethod("ANBGameLogic", "collectibleCollected") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBGameLogic", "collectibleCollected");
+
+            [HarmonyPostfix]
+            public static void Postfix()
+            {
+                if (daemon == null || !daemon.IsConnected) return;
+                daemon.SendEvent("ammo_pouch", priority: 0);
+                MelonLogger.Msg("[ThirdSpace] Event: ammo_pouch (collectible)");
+            }
+        }
+
+        [HarmonyPatch]
+        public class Patch_CollectCoins
+        {
+            static bool Prepare() => FindMethod("ANBGameLogic", "collectCoinWallet") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBGameLogic", "collectCoinWallet");
+
+            [HarmonyPostfix]
+            public static void Postfix()
+            {
+                if (daemon == null || !daemon.IsConnected) return;
+                daemon.SendEvent("ammo_pouch", priority: 0);
+                MelonLogger.Msg("[ThirdSpace] Event: ammo_pouch (coins)");
+            }
+        }
+
+        [HarmonyPatch]
+        public class Patch_TakeDamageLastHP
+        {
+            static bool Prepare() => FindMethod("ANBSFXPlayerManager", "TakeDamageLastHP") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBSFXPlayerManager", "TakeDamageLastHP");
+
+            [HarmonyPostfix]
+            public static void Postfix()
+            {
+                if (daemon == null || !daemon.IsConnected) return;
+                daemon.SendEvent("heartbeat_start", priority: 1);
+                MelonLogger.Msg("[ThirdSpace] Event: heartbeat_start");
+            }
+        }
+
+        [HarmonyPatch]
+        public class Patch_Heal
+        {
+            static bool Prepare() => FindMethod("ANBSFXPlayerManager", "Heal") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBSFXPlayerManager", "Heal");
+
+            [HarmonyPostfix]
+            public static void Postfix()
+            {
+                if (daemon == null || !daemon.IsConnected) return;
+                daemon.SendEvent("heartbeat_stop", priority: 1);
+                daemon.SendEvent("healing", priority: 1);
+                MelonLogger.Msg("[ThirdSpace] Event: heartbeat_stop + healing");
+            }
+        }
+
+        [HarmonyPatch]
+        public class Patch_PlayerDead
+        {
+            static bool Prepare() => FindMethod("ANBGameLogic", "PlayerDeadCall") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBGameLogic", "PlayerDeadCall");
+
+            [HarmonyPostfix]
+            public static void Postfix()
+            {
+                if (daemon == null || !daemon.IsConnected) return;
+                daemon.SendEvent("heartbeat_stop", priority: 1);
+                MelonLogger.Msg("[ThirdSpace] Event: heartbeat_stop (death)");
+            }
+        }
+
+        [HarmonyPatch]
+        public class Patch_EndRun
+        {
+            static bool Prepare() => FindMethod("ANBGameLogic", "endRun") != null;
+            static MethodBase TargetMethod() => FindMethod("ANBGameLogic", "endRun");
+
+            [HarmonyPostfix]
+            public static void Postfix()
+            {
+                if (daemon == null || !daemon.IsConnected) return;
+                daemon.SendEvent("heartbeat_stop", priority: 1);
+                MelonLogger.Msg("[ThirdSpace] Event: heartbeat_stop (endRun)");
             }
         }
     }

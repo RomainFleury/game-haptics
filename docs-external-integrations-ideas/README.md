@@ -87,7 +87,8 @@ These documents outline approaches, patterns, and implementation strategies for 
 - **`GUNMANCONTRACTS_INTEGRATION.md`** - Gunman Contracts Standalone via MelonLoader TCP
   - Harmony patches from [GunmanContracts_bhaptics](https://github.com/floh-bhaptics/GunmanContracts_bhaptics)
   - Recoil inspiration from [GunmanContracts_Provolver](https://github.com/Astienth/GunmanContracts_Provolver) (fire + dual wield)
-  - Events: pistol/shotgun/rifle/bow fire, directional hits, holster in/out, heartbeat
+  - Events: pistol/shotgun/rifle/bow fire, directional hits, gun+knife holsters, mag eject/reload, cocking, chest ammo pouch, low-HP heartbeat loop, healing
+  - Per-event enable/disable on the integration page (defaults all ON)
   - Steam App ID 2421750; install `ThirdSpace_GunmanContracts.dll`
   - ✅ **IMPLEMENTED** - See `gunmancontracts-mod/`
 

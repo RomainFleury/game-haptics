@@ -29,8 +29,15 @@ Copy `..\mods\gunmancontracts\ThirdSpace_GunmanContracts.dll` into the game `Mod
 
 | Event | Notes |
 |-------|-------|
-| `gun_fire` / `shotgun_fire` / `rifle_fire` | From `ANBHVRGunBase.OnFire` |
+| `gun_fire` / `shotgun_fire` / `rifle_fire` | From `ANBHVRGunBase.OnFire` / `FPSshoot` |
 | `bow_fire` | From `HVRPhysicsBow.ShootArrow` |
 | `player_hit` | From `ANBGameLogic.HurtPlayer` (optional angle) |
-| `holster_in` / `holster_out` | Hip or shoulder via `holster` param |
+| `holster_in` / `holster_out` | Guns + knives; hip or shoulder via `holster` param |
+| `mag_eject` | Mag release / hand grab |
+| `reload` | Mag socketed / shotgun shell |
+| `cock_back` / `cock_forward` | Cocking handle; `cock_forward` also ends empty-slide solenoid hold |
+| `slide_lock` / `slide_release` | Empty chamber lock (`OnOutOfAmmo`); release via Infima `SetSlideBack(0)` only |
+| `ammo_pouch` | Chest pouch + ammo credit/substract + pickups |
 | `heartbeat` | Once on Melon init |
+| `heartbeat_start` / `heartbeat_stop` | Last health bar / heal / death / end run |
+| `healing` | On heal |
