@@ -315,6 +315,14 @@ export type ScreenHealthCalibrationScreenshot = {
   sha256: string;
 };
 
+export type ScreenHealthCapturedImage = {
+  filename: string;
+  path: string;
+  width: number;
+  height: number;
+  dataUrl: string;
+};
+
 export type ScreenHealthMaterializeScreenshotResult = {
   success: boolean;
   screenshot?: ScreenHealthCalibrationScreenshot;
