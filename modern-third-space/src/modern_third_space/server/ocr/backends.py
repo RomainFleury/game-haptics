@@ -50,9 +50,60 @@ def rapidocr_unavailable_reason() -> Optional[str]:
         )
 
 
-def tesseract_unavailable_reason() -> Optional[str]:
+_TESSERACT_CMD: Optional[str] = None
+_TESSERACT_RESOLVED = False
+
+
+def _common_tesseract_paths() -> List[str]:
+    import os
+    import sys
+
+    if sys.platform == "win32":
+        pf = os.environ.get("ProgramFiles", r"C:\Program Files")
+        pf86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
+        local = os.environ.get("LOCALAPPDATA", "")
+        return [
+            os.path.join(pf, "Tesseract-OCR", "tesseract.exe"),
+            os.path.join(pf86, "Tesseract-OCR", "tesseract.exe"),
+            os.path.join(local, "Programs", "Tesseract-OCR", "tesseract.exe"),
+            os.path.join(local, "Tesseract-OCR", "tesseract.exe"),
+        ]
+    return [
+        "/usr/bin/tesseract",
+        "/usr/local/bin/tesseract",
+        "/opt/homebrew/bin/tesseract",
+    ]
+
+
+def resolve_tesseract_cmd() -> Optional[str]:
+    """Find tesseract on PATH or common install dirs; configure pytesseract."""
+    global _TESSERACT_CMD, _TESSERACT_RESOLVED
+    if _TESSERACT_RESOLVED:
+        return _TESSERACT_CMD
+
+    import os
     import shutil
 
+    found = shutil.which("tesseract")
+    if not found:
+        for path in _common_tesseract_paths():
+            if path and os.path.isfile(path):
+                found = path
+                break
+
+    _TESSERACT_CMD = found
+    _TESSERACT_RESOLVED = True
+    if found:
+        try:
+            import pytesseract
+
+            pytesseract.pytesseract.tesseract_cmd = found
+        except Exception:
+            pass
+    return found
+
+
+def tesseract_unavailable_reason() -> Optional[str]:
     try:
         import pytesseract  # noqa: F401
     except Exception as e:
@@ -61,10 +112,10 @@ def tesseract_unavailable_reason() -> Optional[str]:
             "  py -3.14 -m pip install pytesseract\n"
             f"Import error: {e}"
         )
-    if not shutil.which("tesseract"):
+    if not resolve_tesseract_cmd():
         return (
-            "Tesseract binary not found on PATH. Install Tesseract for Windows "
-            "(UB Mannheim build) and restart the daemon."
+            "Tesseract binary not found. Install Tesseract for Windows "
+            "(UB Mannheim build), or add tesseract.exe to PATH, then restart the daemon."
         )
     return None
 
@@ -259,8 +310,11 @@ class WindowsOcrEngine(DigitOcrBackend):
     def unavailable_reason(self) -> Optional[str]:
         return windows_ocr_unavailable_reason()
 
+    def recognize_text(self, roi: OcrRoi) -> str:
+        return recognize_windows_ocr_text(roi.bgra, roi.width, roi.height)
+
     def read_number(self, roi: OcrRoi) -> Optional[int]:
-        return number_from_ocr_text(recognize_windows_ocr_text(roi.bgra, roi.width, roi.height))
+        return number_from_ocr_text(self.recognize_text(roi))
 
 
 class RapidOcrEngine(DigitOcrBackend):
@@ -268,44 +322,68 @@ class RapidOcrEngine(DigitOcrBackend):
     label = "RapidOCR (ONNX)"
     beta = True
     group = "neural"
+    offered_in_ui = True
+    # Full detect+recognize on CPU; keep preprocess variants low or live recoil crawls.
+    max_roi_variants = 2
+    ui_summary = (
+        "Local ONNX model — often better on stylized HUD fonts, but slow on CPU "
+        "(detect+recognize). Prefer Tesseract when speed matters. Needs rapidocr + onnxruntime."
+    )
     description = "Small ONNX text model on CPU. Closest to a lightweight neural net for live HUD text."
     install = "py -3.14 -m pip install rapidocr onnxruntime"
 
     def unavailable_reason(self) -> Optional[str]:
         return rapidocr_unavailable_reason()
 
-    def read_number(self, roi: OcrRoi) -> Optional[int]:
+    def recognize_text(self, roi: OcrRoi) -> str:
         import numpy as np
 
         engine = _get_rapidocr()
         expected = int(roi.width) * int(roi.height) * 4
         img = np.frombuffer(roi.bgra[:expected], dtype=np.uint8).reshape((int(roi.height), int(roi.width), 4))
         bgr = np.ascontiguousarray(img[:, :, :3])
-        return number_from_ocr_text(_rapidocr_result_to_text(engine(bgr)))
+        return _rapidocr_result_to_text(engine(bgr))
+
+    def read_number(self, roi: OcrRoi) -> Optional[int]:
+        return number_from_ocr_text(self.recognize_text(roi))
 
 
 class TesseractEngine(DigitOcrBackend):
     id = "tesseract"
     label = "Tesseract OCR"
-    beta = True
+    beta = False
     group = "system"
+    offered_in_ui = True
+    ui_summary = (
+        "Classic local OCR (digits-only). Much faster than RapidOCR on a small ammo ROI. "
+        "Uses the Tesseract Windows install (auto-found under Program Files) plus pytesseract."
+    )
     description = "Classic Tesseract, digits-only. Install the Tesseract binary plus pytesseract."
     install = "Install Tesseract for Windows, then: py -3.14 -m pip install pytesseract"
 
     def unavailable_reason(self) -> Optional[str]:
         return tesseract_unavailable_reason()
 
-    def read_number(self, roi: OcrRoi) -> Optional[int]:
+    def recognize_text(self, roi: OcrRoi) -> str:
         import numpy as np
         import pytesseract
         from PIL import Image
 
+        resolve_tesseract_cmd()
         expected = int(roi.width) * int(roi.height) * 4
         img = np.frombuffer(roi.bgra[:expected], dtype=np.uint8).reshape((int(roi.height), int(roi.width), 4))
         rgba = img[:, :, [2, 1, 0, 3]]
         pil = Image.fromarray(rgba, mode="RGBA").convert("L")
-        config = "--psm 7 -c tessedit_char_whitelist=0123456789"
-        return number_from_ocr_text(str(pytesseract.image_to_string(pil, config=config) or "").strip())
+        # Try single-line first (fast); fall back to single-char for 1-digit ammo.
+        for psm in (7, 10):
+            config = f"--psm {psm} -c tessedit_char_whitelist=0123456789"
+            text = str(pytesseract.image_to_string(pil, config=config) or "").strip()
+            if text:
+                return text
+        return ""
+
+    def read_number(self, roi: OcrRoi) -> Optional[int]:
+        return number_from_ocr_text(self.recognize_text(roi))
 
 
 class TesseractBoxesEngine(DigitOcrBackend):
@@ -331,6 +409,7 @@ class TesseractBoxesEngine(DigitOcrBackend):
         import numpy as np
         import pytesseract
 
+        resolve_tesseract_cmd()
         expected = int(roi.width) * int(roi.height) * 4
         img = np.frombuffer(roi.bgra[:expected], dtype=np.uint8).reshape((int(roi.height), int(roi.width), 4))
         bgr = np.ascontiguousarray(img[:, :, :3])

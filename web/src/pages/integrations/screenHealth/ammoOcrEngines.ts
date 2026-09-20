@@ -1,5 +1,6 @@
 /** Profile OCR engine. "daemon" follows Daemon Settings. Keep ids in sync with Python. */
 export const AMMO_OCR_ENGINES = [
+  { id: "templates", label: "Learned digit templates", beta: false },
   { id: "daemon", label: "Daemon setting", beta: false },
   { id: "windows_ocr", label: "Windows OCR", beta: false },
   { id: "rapidocr", label: "RapidOCR (ONNX)", beta: true },
@@ -11,7 +12,7 @@ export const AMMO_OCR_ENGINES = [
 
 export type AmmoOcrEngineId = (typeof AMMO_OCR_ENGINES)[number]["id"];
 
-export const DEFAULT_AMMO_OCR_ENGINE: AmmoOcrEngineId = "daemon";
+export const DEFAULT_AMMO_OCR_ENGINE: AmmoOcrEngineId = "templates";
 
 export function normalizeAmmoOcrEngine(value: unknown): AmmoOcrEngineId {
   const raw = String(value ?? "").trim();

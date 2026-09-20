@@ -58,7 +58,12 @@ export function RoiListSection(props: {
   const hn = useScreenHealthHealthNumberDraft();
   const { readDraft: readHealthNumberDraft, setRoi: setHealthNumberRoi } = useScreenHealthHealthNumberDraftControls();
   const recoil = useScreenHealthRecoilDraft();
-  const { readDraft: readRecoilDraft, setRoi: setRecoilRoi, setRecoilType } = useScreenHealthRecoilDraftControls();
+  const {
+    readDraft: readRecoilDraft,
+    clearZones,
+    updateZone,
+    removeZone,
+  } = useScreenHealthRecoilDraftControls();
 
   const [evaluating, setEvaluating] = useState(false);
   const [evalError, setEvalError] = useState<string | null>(null);
@@ -68,13 +73,14 @@ export function RoiListSection(props: {
   const colorVignetteRois = colorVignette.rois;
   const healthBarRoi = hb.roi;
   const healthNumberRoi = hn.roi;
-  const ammoRoi = recoil.roi;
+  const ammoZones = recoil.zones;
   const drawn = getDrawnSetup({
     rednessRois: rois,
     colorVignetteRois,
     healthBarRoi,
     healthNumberRoi,
-    ammoRoi,
+    ammoRoi: ammoZones[0]?.rect ?? null,
+    ammoZones,
   });
 
   const hasScreenshotPath = Boolean(lastCapturedImage?.path?.trim());
@@ -335,24 +341,45 @@ export function RoiListSection(props: {
         <VignetteRoiCards rois={colorVignetteRois} updateRoi={updateColorVignetteRoi} removeRoi={removeColorVignetteRoi} />
       )}
 
-      {drawn.hasAmmo && ammoRoi && (
-        <div className="rounded-lg bg-slate-700/20 p-3 ring-1 ring-white/5 space-y-3">
-          <div className="text-xs font-medium text-amber-200">
-            {recoil.recoilType === "fill_up_bar" ? "Fill-up bar" : "Ammo counter"}
-          </div>
-          <RoiPreviewInfo rect={ammoRoi} />
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setRecoilRoi(null);
-                setRecoilType("off");
-              }}
-              className="rounded-lg bg-rose-600/70 px-3 py-2 text-sm font-medium text-white transition hover:bg-rose-600"
-            >
-              Clear
-            </button>
-          </div>
+      {drawn.hasAmmo && ammoZones.length > 0 && (
+        <div className="space-y-2">
+          {ammoZones.map((z, idx) => (
+            <div key={`${z.name}-${idx}`} className="rounded-lg bg-slate-700/20 p-3 ring-1 ring-white/5 space-y-3">
+              <div className="text-xs font-medium text-amber-200">
+                {recoil.recoilType === "fill_up_bar"
+                  ? "Fill-up bar"
+                  : ammoZones.length > 1
+                    ? `Ammo counter (${idx + 1}/${ammoZones.length})`
+                    : "Ammo counter"}
+              </div>
+              {recoil.recoilType !== "fill_up_bar" && (
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Name</label>
+                  <input
+                    value={z.name}
+                    onChange={(e) => updateZone(idx, { name: e.target.value })}
+                    className="w-full rounded-lg bg-slate-800/50 px-3 py-2 text-sm text-white ring-1 ring-white/10"
+                  />
+                </div>
+              )}
+              <RoiPreviewInfo rect={z.rect} />
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (ammoZones.length <= 1) {
+                      clearZones();
+                    } else {
+                      removeZone(idx);
+                    }
+                  }}
+                  className="rounded-lg bg-rose-600/70 px-3 py-2 text-sm font-medium text-white transition hover:bg-rose-600"
+                >
+                  {ammoZones.length <= 1 ? "Clear" : "Remove"}
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

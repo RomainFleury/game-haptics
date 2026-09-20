@@ -1109,21 +1109,22 @@ class ScreenHealthManager:
                         ocr_err,
                         eval_ms,
                     )
-                    detectors_out.append(
-                        {
-                            "type": detector_type,
-                            "name": hn.name,
-                            "engine": hn.engine,
-                            "rect_px": {"left": left, "top": top, "w": w, "h": h},
-                            "read": int(value) if value is not None else None,
-                            "ocr_text": ocr_text,
-                            "digits": int(hn.digits),
-                            "error": ocr_err,
-                            "capture_ms": cap_ms,
-                            "eval_ms": eval_ms,
-                            "image_path": save_crop(detector_type, hn.name, raw, w, h),
-                        }
-                    )
+                    out_row = {
+                        "type": detector_type,
+                        "name": hn.name,
+                        "engine": hn.engine,
+                        "rect_px": {"left": left, "top": top, "w": w, "h": h},
+                        "read": int(value) if value is not None else None,
+                        "ocr_text": ocr_text,
+                        "error": ocr_err,
+                        "capture_ms": cap_ms,
+                        "eval_ms": eval_ms,
+                        "image_path": save_crop(detector_type, hn.name, raw, w, h),
+                    }
+                    # Template matching needs a fixed digit count; text OCR is variable-width.
+                    if str(getattr(hn, "engine", "")) == "templates":
+                        out_row["digits"] = int(hn.digits)
+                    detectors_out.append(out_row)
                 else:
                     bits, bw, bh = binarize_bgra_to_bitmap(
                         raw,
@@ -1133,7 +1134,10 @@ class ScreenHealthManager:
                         invert=hn.preprocess.invert,
                         scale=hn.preprocess.scale,
                     )
-                    value = self._health_number_try_read(bits, bw, bh, hn)
+                    if detector_type == "ammo_number":
+                        value = self._ammo_number_try_read_templates(bits, bw, bh, hn)
+                    else:
+                        value = self._health_number_try_read(bits, bw, bh, hn)
                     eval_ms = (time.perf_counter() - eval0) * 1000.0
 
                     detectors_out.append(
@@ -1904,7 +1908,10 @@ class ScreenHealthManager:
                             invert=hn.preprocess.invert,
                             scale=hn.preprocess.scale,
                         )
-                        value = self._health_number_try_read(bits, bw, bh, hn)
+                        if is_ammo:
+                            value = self._ammo_number_try_read_templates(bits, bw, bh, hn)
+                        else:
+                            value = self._health_number_try_read(bits, bw, bh, hn)
                     if should_periodic_log:
                         logger.info(
                             "[screen_health] health_number detector=%s read=%s stable_reads=%s",
@@ -2261,26 +2268,65 @@ class ScreenHealthManager:
         recoil_type = str(recoil_data.get("type") or "") if isinstance(recoil_data, dict) else ""
         if recoil_type == "ammo_number":
             recoil_duration_ms = max(1, int(recoil_data.get("duration_ms", 40)))
-            ammo_dict = dict(recoil_data)
-            ammo_dict["type"] = "health_number"
-            ammo_dict["name"] = str(recoil_data.get("name") or "ammo_number")
-            # Default: follow the daemon-wide OCR engine (Daemon Settings page)
-            if "engine" not in ammo_dict:
-                ammo_dict["engine"] = PROFILE_OCR_DAEMON
-            engine_name = str(ammo_dict.get("engine") or PROFILE_OCR_DAEMON)
-            allowed_ammo = ("templates", PROFILE_OCR_DAEMON) + TEXT_OCR_ENGINES
-            if engine_name not in allowed_ammo:
-                raise ValueError(f"recoil.engine must be one of {allowed_ammo}")
-            # Variable-width ammo (1–3); keep schema digits field as an upper bound only
-            if uses_text_ocr_engine(engine_name):
-                ammo_dict["digits"] = 3
-                readout = ammo_dict.get("readout") if isinstance(ammo_dict.get("readout"), dict) else {}
-                ammo_dict["readout"] = {
-                    "min": 0,
-                    "max": 999,
-                    "stable_reads": int(readout.get("stable_reads", 2)),
-                }
-            ammo_numbers.append(self._parse_health_number_detector(ammo_dict))
+            # Prefer recoil.zones[] (dual-wield / multi gun). Legacy single roi still works.
+            zones_raw = recoil_data.get("zones")
+            zone_specs: List[Dict[str, Any]] = []
+            if isinstance(zones_raw, list) and zones_raw:
+                for idx, zone in enumerate(zones_raw):
+                    if not isinstance(zone, dict):
+                        continue
+                    zone_roi = zone.get("roi")
+                    if not isinstance(zone_roi, dict):
+                        raise ValueError(f"recoil.zones[{idx}].roi is required")
+                    zone_specs.append(
+                        {
+                            "name": str(zone.get("name") or f"ammo_{idx + 1}"),
+                            "roi": zone_roi,
+                        }
+                    )
+                if not zone_specs:
+                    raise ValueError("recoil.zones must contain at least one valid zone")
+            elif isinstance(recoil_data.get("roi"), dict):
+                zone_specs.append(
+                    {
+                        "name": str(recoil_data.get("name") or "ammo_number"),
+                        "roi": recoil_data["roi"],
+                    }
+                )
+            else:
+                raise ValueError("recoil.ammo_number requires roi or zones[]")
+
+            used_names: set[str] = set()
+            for idx, zone in enumerate(zone_specs):
+                ammo_dict = dict(recoil_data)
+                ammo_dict.pop("zones", None)
+                ammo_dict["type"] = "health_number"
+                ammo_dict["roi"] = zone["roi"]
+                base_name = str(zone["name"] or f"ammo_{idx + 1}").strip() or f"ammo_{idx + 1}"
+                name = base_name
+                suffix = 2
+                while name in used_names:
+                    name = f"{base_name}_{suffix}"
+                    suffix += 1
+                used_names.add(name)
+                ammo_dict["name"] = name
+                # Default: follow the daemon-wide OCR engine (Daemon Settings page)
+                if "engine" not in ammo_dict:
+                    ammo_dict["engine"] = PROFILE_OCR_DAEMON
+                engine_name = str(ammo_dict.get("engine") or PROFILE_OCR_DAEMON)
+                allowed_ammo = ("templates", PROFILE_OCR_DAEMON) + TEXT_OCR_ENGINES
+                if engine_name not in allowed_ammo:
+                    raise ValueError(f"recoil.engine must be one of {allowed_ammo}")
+                # Variable-width ammo (1–3); keep schema digits field as an upper bound only
+                if uses_text_ocr_engine(engine_name):
+                    ammo_dict["digits"] = 3
+                    readout = ammo_dict.get("readout") if isinstance(ammo_dict.get("readout"), dict) else {}
+                    ammo_dict["readout"] = {
+                        "min": 0,
+                        "max": 999,
+                        "stable_reads": int(readout.get("stable_reads", 2)),
+                    }
+                ammo_numbers.append(self._parse_health_number_detector(ammo_dict))
         elif recoil_type == "fill_up_bar":
             bar = self._parse_fill_up_bar_detector(recoil_data)
             fill_up_bars.append(bar)
@@ -2482,18 +2528,38 @@ class ScreenHealthManager:
             )
         return value, text
 
-    def _health_number_try_read(self, bits: List[int], bw: int, bh: int, hn: HealthNumberDetector) -> Optional[int]:
+    def _ammo_number_try_read_templates(
+        self, bits: List[int], bw: int, bh: int, hn: HealthNumberDetector
+    ) -> Optional[int]:
+        """Try digit widths 1..hn.digits so a lone '7' still matches in a wide ROI."""
+        max_digits = max(1, int(hn.digits))
+        for n in range(1, max_digits + 1):
+            value = self._health_number_try_read(bits, bw, bh, hn, digit_count=n)
+            if value is not None:
+                return value
+        return None
+
+    def _health_number_try_read(
+        self,
+        bits: List[int],
+        bw: int,
+        bh: int,
+        hn: HealthNumberDetector,
+        *,
+        digit_count: Optional[int] = None,
+    ) -> Optional[int]:
         assert hn.templates is not None
-        if hn.digits <= 0:
+        n_digits = int(digit_count) if digit_count is not None else int(hn.digits)
+        if n_digits <= 0:
             return None
         if bw <= 0 or bh <= 0:
             return None
 
         # Split into fixed-width digit slices.
         digits_str = ""
-        for i in range(hn.digits):
-            x0 = int(round(i * bw / hn.digits))
-            x1 = int(round((i + 1) * bw / hn.digits))
+        for i in range(n_digits):
+            x0 = int(round(i * bw / n_digits))
+            x1 = int(round((i + 1) * bw / n_digits))
             x1 = max(x0 + 1, min(bw, x1))
             slice_w = x1 - x0
 

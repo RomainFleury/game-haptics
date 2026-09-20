@@ -62,6 +62,7 @@ export function CalibrationCanvasSection(props: { lastCapturedImage: { dataUrl: 
   const recoil = useScreenHealthRecoilDraft();
   const {
     setRoi: setRecoilRoi,
+    appendAmmoZone,
     setRecoilType,
     setBackgroundRgb: setRecoilBackgroundRgb,
     setColorPickMode: setRecoilColorPickMode,
@@ -176,7 +177,11 @@ export function CalibrationCanvasSection(props: { lastCapturedImage: { dataUrl: 
 
     const newRect = { x: clamp01(x1 / rect.width), y: clamp01(y1 / rect.height), w: clamp01(w / rect.width), h: clamp01(h / rect.height) };
     if (editingRecoil) {
-      setRecoilRoi(newRect);
+      if (recoil.recoilDrawKind === "fill_up_bar") {
+        setRecoilRoi(newRect);
+      } else {
+        appendAmmoZone(newRect);
+      }
       setRecoilType(recoil.recoilDrawKind);
       return;
     }
@@ -214,6 +219,7 @@ export function CalibrationCanvasSection(props: { lastCapturedImage: { dataUrl: 
     setHealthBarRoi,
     setHealthNumberRoi,
     setRecoilRoi,
+    appendAmmoZone,
     setRecoilType,
     setRois,
     setColorVignetteRois,
@@ -237,7 +243,7 @@ export function CalibrationCanvasSection(props: { lastCapturedImage: { dataUrl: 
     : editingRecoil
     ? recoil.recoilDrawKind === "fill_up_bar"
       ? "Drawing fill-up bar (amber)."
-      : "Drawing ammo counter (amber)."
+      : "Drawing ammo counter (amber). Draw each gun's number — dual-wield needs two boxes."
     : detectorType === "health_bar"
       ? "Drawing health bar (green)."
       : detectorType === "health_number"
@@ -290,14 +296,18 @@ export function CalibrationCanvasSection(props: { lastCapturedImage: { dataUrl: 
           />
         )}
 
-        {recoil.roi && (
+        {recoil.zones.map((z, idx) => (
           <RoiZoneOverlay
-            rect={recoil.roi}
+            key={`${z.name}-${idx}`}
+            rect={z.rect}
             className="border-2 border-amber-400/80 bg-amber-400/10"
-            lines={zoneLines(recoil.recoilType === "fill_up_bar" ? "Fill-up bar" : "Ammo box")}
+            lines={zoneLines(
+              recoil.recoilType === "fill_up_bar" ? "Fill-up bar" : "Ammo box",
+              z.name
+            )}
             onHover={drawing ? () => undefined : updateHoverTip}
           />
-        )}
+        ))}
 
         {hoverTip && !drawing && (
           <div
