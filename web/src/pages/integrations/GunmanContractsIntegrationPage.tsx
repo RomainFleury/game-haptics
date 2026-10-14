@@ -121,6 +121,20 @@ export function GunmanContractsIntegrationPage() {
       "Start the vest daemon, click Start on this page, then launch the game",
       "Optional solenoid recoil is inspired by GunmanContracts_Provolver (fire + dual wield); vest fire events come from bHaptics OnFire hooks",
     ],
+    credits: {
+      summary:
+        "Vest Harmony hooks follow Florian’s (floh-bhaptics) Gunman Contracts bHaptics mod. Solenoid fire and dual-wield feel are inspired by Astienth’s Provolver bridge.",
+      links: [
+        {
+          label: "GunmanContracts_bhaptics (Florian)",
+          url: "https://github.com/floh-bhaptics/GunmanContracts_bhaptics",
+        },
+        {
+          label: "GunmanContracts_Provolver (Astienth)",
+          url: "https://github.com/Astienth/GunmanContracts_Provolver",
+        },
+      ],
+    },
   };
 
   const configurationPanel = (

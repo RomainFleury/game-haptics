@@ -73,6 +73,20 @@ export function PistolWhipIntegrationPage() {
           "Select the Pistol Whip folder below and click Install Mod (builds ThirdSpace_PistolWhip.dll if needed)",
       "Start the vest daemon, click Start on this page, then launch Pistol Whip",
     ],
+    credits: {
+      summary:
+        "Harmony hooks are adapted from Florian’s (floh-bhaptics) open-source Pistol Whip mods. Our MelonLoader DLL talks to the Third Space daemon instead of bHaptics/OWO.",
+      links: [
+        {
+          label: "PistolWhip_bhaptics (Florian)",
+          url: "https://github.com/floh-bhaptics/PistolWhip_bhaptics",
+        },
+        {
+          label: "PistolWhip_OWO (Florian)",
+          url: "https://github.com/floh-bhaptics/PistolWhip_OWO",
+        },
+      ],
+    },
   };
 
   const configurationPanel = (
@@ -170,6 +184,17 @@ export function PistolWhipIntegrationPage() {
       </ol>
       <p className="text-slate-500 text-xs">
         Optional: create <code className="bg-slate-800 px-1 rounded">Pistol Whip/Mods/ThirdSpace_Config.txt</code> with <code className="bg-slate-800 px-1 rounded">IP</code> or <code className="bg-slate-800 px-1 rounded">IP:PORT</code> if the daemon is not on localhost:5050.
+      </p>
+      <p className="text-slate-500 text-xs">
+        Based on Florian&apos;s{" "}
+        <a className="underline text-sky-400" href="https://github.com/floh-bhaptics/PistolWhip_bhaptics" target="_blank" rel="noreferrer">
+          PistolWhip_bhaptics
+        </a>{" "}
+        /{" "}
+        <a className="underline text-sky-400" href="https://github.com/floh-bhaptics/PistolWhip_OWO" target="_blank" rel="noreferrer">
+          PistolWhip_OWO
+        </a>
+        .
       </p>
     </div>
   );

@@ -92,6 +92,12 @@ These documents outline approaches, patterns, and implementation strategies for 
   - Steam App ID 2421750; install `ThirdSpace_GunmanContracts.dll`
   - ✅ **IMPLEMENTED** - See `gunmancontracts-mod/`
 
+- **`TITANFALL2_INTEGRATION.md`** - Titanfall 2 vest and gun recoil (flat + VR)
+  - Event names from Florian's [Titanfall2VR_bhaptics](https://github.com/floh-bhaptics/Titanfall2VR_bhaptics)
+  - One Northstar plugin for CircuitLord VR (`TF2VR`) and flat Northstar (`R2Northstar`)
+  - App Install Mod deploys into all detected profiles
+  - ✅ **IMPLEMENTED** - See `titanfall2-mod/`
+
 - **`MELONLOADER_INTEGRATION_STRATEGY.md`** - Comprehensive strategy for integrating MelonLoader-based game mods (Unity games like SUPERHOT VR, Drunkn Bar Fight, etc.)
   - Multiple integration approaches (file logging, HTTP/WebSocket, IPC)
   - Event mapping strategies

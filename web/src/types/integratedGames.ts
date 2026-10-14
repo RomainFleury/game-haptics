@@ -67,13 +67,30 @@ export interface SetupStep {
 }
 
 /**
+ * Link to an upstream mod or author we built on.
+ */
+export interface ModCreditLink {
+  label: string;
+  url: string;
+}
+
+/**
  * Mod information
  */
 export interface ModInfo {
   name: string;
   downloadUrl: string;
+  /** Upstream / original mod repo (also used as the Setup Guide "Original mod" button). */
   githubUrl?: string;
   installInstructions: string[];
+  /**
+   * Always-visible attribution when our integration is based on someone else's
+   * hooks, effects map, or public mod (e.g. floh-bhaptics).
+   */
+  credits?: {
+    summary: string;
+    links: ModCreditLink[];
+  };
 }
 
 /**

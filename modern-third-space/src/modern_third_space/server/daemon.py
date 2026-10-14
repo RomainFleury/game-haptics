@@ -79,6 +79,7 @@ from .l4d2_manager import L4D2Manager
 from .pistolwhip_manager import PistolWhipManager
 from .battlesister_manager import BattleSisterManager
 from .gunmancontracts_manager import GunmanContractsManager
+from .titanfall2_manager import Titanfall2Manager
 from .ocr_settings import load_ocr_settings, save_ocr_settings
 from .screen_health_manager import ScreenHealthManager
 from .screen_ocr import list_ocr_engines, normalize_text_ocr_engine
@@ -117,6 +118,13 @@ from .protocol import (
     response_gunmancontracts_stop,
     response_gunmancontracts_status,
     response_gunmancontracts_event,
+    event_titanfall2_started,
+    event_titanfall2_stopped,
+    event_titanfall2_game_event,
+    response_titanfall2_start,
+    response_titanfall2_stop,
+    response_titanfall2_status,
+    response_titanfall2_event,
     event_screen_health_started,
     event_screen_health_stopped,
     event_screen_health_hit,
@@ -229,6 +237,12 @@ class VestDaemon:
             on_recoil_hold=self._on_solenoid_hold,
         )
 
+        self._titanfall2_manager = Titanfall2Manager(
+            on_game_event=self._on_titanfall2_game_event,
+            on_trigger=self._on_titanfall2_trigger,
+            on_recoil=self._on_solenoid_recoil,
+        )
+
         # Generic Screen Health Watcher manager
         self._ocr_settings = load_ocr_settings()
         self._screen_health_manager = ScreenHealthManager(
@@ -289,6 +303,8 @@ class VestDaemon:
             self._battlesister_manager.disable()
         if self._gunmancontracts_manager.enabled:
             self._gunmancontracts_manager.disable()
+        if self._titanfall2_manager.enabled:
+            self._titanfall2_manager.disable()
 
         # Disconnect USB relay if connected
         try:
@@ -551,6 +567,18 @@ class VestDaemon:
 
         if cmd_type == CommandType.GUNMANCONTRACTS_EVENT:
             return await self._cmd_gunmancontracts_event(command)
+
+        if cmd_type == CommandType.TITANFALL2_START:
+            return await self._cmd_titanfall2_start(command)
+
+        if cmd_type == CommandType.TITANFALL2_STOP:
+            return await self._cmd_titanfall2_stop(command)
+
+        if cmd_type == CommandType.TITANFALL2_STATUS:
+            return await self._cmd_titanfall2_status(command)
+
+        if cmd_type == CommandType.TITANFALL2_EVENT:
+            return await self._cmd_titanfall2_event(command)
 
         # Generic Screen Health Watcher commands
         if cmd_type == CommandType.SCREEN_HEALTH_START:
@@ -1760,6 +1788,69 @@ class VestDaemon:
         )
 
     def _on_gunmancontracts_trigger(self, cell: int, speed: int) -> None:
+        main_device_id = self._registry.get_main_device_id()
+        if main_device_id is None:
+            return
+        controller = self._registry.get_controller(main_device_id)
+        if controller is None or not controller.status().connected:
+            return
+        controller.trigger_effect(cell, speed)
+        if self._loop is not None:
+            event = event_effect_triggered(cell, speed, device_id=main_device_id)
+            asyncio.run_coroutine_threadsafe(self._clients.broadcast(event), self._loop)
+
+    async def _cmd_titanfall2_start(self, command: Command) -> Response:
+        success, error = self._titanfall2_manager.start(
+            solenoid_recoil=command.solenoid_recoil,
+            enabled_events=command.enabled_events,
+        )
+        if success:
+            await self._clients.broadcast(event_titanfall2_started())
+            return response_titanfall2_start(success=True, req_id=command.req_id)
+        return response_titanfall2_start(success=False, error=error, req_id=command.req_id)
+
+    async def _cmd_titanfall2_stop(self, command: Command) -> Response:
+        success = self._titanfall2_manager.stop()
+        if success:
+            await self._clients.broadcast(event_titanfall2_stopped())
+        return response_titanfall2_stop(success=success, req_id=command.req_id)
+
+    async def _cmd_titanfall2_status(self, command: Command) -> Response:
+        return response_titanfall2_status(
+            running=self._titanfall2_manager.enabled,
+            events_received=self._titanfall2_manager.events_received,
+            last_event_ts=self._titanfall2_manager.last_event_ts,
+            last_event_type=self._titanfall2_manager.last_event_type,
+            req_id=command.req_id,
+        )
+
+    async def _cmd_titanfall2_event(self, command: Command) -> Response:
+        handled = self._titanfall2_manager.process_event(
+            str(command.event or ""),
+            hand=command.hand,
+            priority=int(command.priority or 0),
+            angle=command.angle,
+            weapon=command.weapon,
+            intensity=command.intensity,
+            group=command.group,
+        )
+        if not handled:
+            return response_titanfall2_event(
+                success=False,
+                error="Titanfall 2 integration is not started",
+                req_id=command.req_id,
+            )
+        return response_titanfall2_event(success=True, req_id=command.req_id)
+
+    def _on_titanfall2_game_event(self, event_type: str, params: dict) -> None:
+        if self._loop is None:
+            return
+        asyncio.run_coroutine_threadsafe(
+            self._clients.broadcast(event_titanfall2_game_event(event_type, params)),
+            self._loop,
+        )
+
+    def _on_titanfall2_trigger(self, cell: int, speed: int) -> None:
         main_device_id = self._registry.get_main_device_id()
         if main_device_id is None:
             return

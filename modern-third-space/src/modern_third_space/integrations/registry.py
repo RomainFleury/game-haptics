@@ -239,6 +239,38 @@ register_integration(GameIntegrationSpec(
     mod_url="https://github.com/floh-bhaptics/GunmanContracts_bhaptics",
 ))
 
+# Titanfall 2 VR (Northstar TCP client; Florian's bHaptics/ProTube plugin)
+register_integration(GameIntegrationSpec(
+    game_id="titanfall2",
+    game_name="Titanfall 2",
+    integration_type=IntegrationType.TCP_CLIENT,
+    status=IntegrationStatus.BETA,
+    manager_module="titanfall2_manager",
+    manager_class="Titanfall2Manager",
+    daemon_commands=[
+        "titanfall2_start",
+        "titanfall2_stop",
+        "titanfall2_status",
+        "titanfall2_event",
+    ],
+    event_types=[
+        "recoil_pistol", "recoil_rifle", "recoil_shotgun", "recoil_heavy",
+        "recoil_titan", "recoil_titan_rockets", "charge",
+        "impact", "explosion",
+        "heartbeat", "healing",
+        "player_spawned", "player_killed",
+        "player_enter_titan", "player_exit_titan",
+        "shield_damage",
+        "player_jump", "player_dodge", "player_land", "player_mantle",
+        "begin_wallrun", "end_wallrun", "zipline",
+        "titan_hit", "titan_destroyed", "titan_melee", "titan_footstep", "titanfall",
+    ],
+    has_directional_damage=True,
+    docs_file="docs-external-integrations-ideas/TITANFALL2_INTEGRATION.md",
+    requires_external_mod=True,
+    mod_url="https://github.com/floh-bhaptics/Titanfall2VR_bhaptics",
+))
+
 # Generic Screen Health Watcher (screen capture)
 register_integration(GameIntegrationSpec(
     game_id="screen_health",

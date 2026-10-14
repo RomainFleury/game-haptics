@@ -305,15 +305,9 @@ L 01/15/2024 - 12:34:58: Player fired weapon: shotgun
 
 ### Existing bHaptics/OWO Mods
 
-**Finding**: No existing bHaptics or OWO mods found for Left 4 Dead 2 in:
-- GitHub searches
-- Local `misc-documentations/bhaptations-svg-24-nov/` folder
-- OWO game list
+**Finding**: No dedicated bHaptics or OWO *L4D2* mod was found (GitHub, local `misc-documentations/`, OWO game list). L4D2 is older and less VR-focused than typical haptic titles.
 
-This suggests L4D2 integration is less common, possibly due to:
-- Older game (2009)
-- Less VR-focused community
-- Source engine limitations
+**Inspiration nonetheless**: Our haptic event map (directional damage, weapon fire, healing/adrenaline, death) follows patterns from bHaptics/OWO FPS integrations (e.g. [bHaptics CS2](https://www.bhaptics.com/games/experiences/counter-strike-2/), [OWO CS2](https://owogame.com/game/counter-strike-2/)). Console-log watching uses the same `-condebug` approach as Half-Life: Alyx haptic mods ([Tactsuit Alyx](https://www.nexusmods.com/halflifealyx/mods/6)).
 
 ### Source Engine Console
 

@@ -502,6 +502,13 @@ class TestIntegrationSnapshot:
             "has_manager": True,
             "event_count_min": 16,
         },
+        "titanfall2": {
+            "game_name": "Titanfall 2",
+            "integration_type": "tcp_client",
+            "status": "beta",
+            "has_manager": True,
+            "event_count_min": 20,
+        },
         "screen_health": {
             "game_name": "Generic Screen Health (Screen Capture)",
             "integration_type": "screen_capture",

@@ -628,6 +628,68 @@ declare global {
         warning?: string;
         error?: string;
       }>;
+      titanfall2Start: () => Promise<{ success: boolean; error?: string }>;
+      titanfall2Stop: () => Promise<{ success: boolean; error?: string }>;
+      titanfall2Status: () => Promise<{
+        success: boolean;
+        running: boolean;
+        events_received?: number;
+        last_event_ts?: number | null;
+        last_event_type?: string | null;
+        error?: string;
+      }>;
+      titanfall2GetSettings: () => Promise<{
+        success: boolean;
+        gameDir?: string | null;
+        solenoidRecoil?: SolenoidRecoilSettings;
+        error?: string;
+      }>;
+      titanfall2SetSolenoidRecoil: (
+        solenoidRecoil: Partial<SolenoidRecoilSettings>
+      ) => Promise<{ success: boolean; solenoidRecoil?: SolenoidRecoilSettings; error?: string }>;
+      titanfall2BrowseGameDir: () => Promise<{
+        success: boolean;
+        gameDir?: string;
+        canceled?: boolean;
+        error?: string;
+      }>;
+      titanfall2GetGameDir: () => Promise<{
+        success: boolean;
+        gameDir?: string | null;
+        error?: string;
+      }>;
+      titanfall2SetGameDir: (gameDir: string | null) => Promise<{ success: boolean; error?: string }>;
+      titanfall2CheckModInstalled: () => Promise<{
+        success: boolean;
+        installed?: boolean;
+        allProfilesInstalled?: boolean;
+        dllInstalled?: boolean;
+        modInstalled?: boolean;
+        sourceAvailable?: boolean;
+        missingFiles?: string[];
+        gameDir?: string;
+        gameRoot?: string;
+        tf2vrDir?: string;
+        profiles?: Array<{
+          name: string;
+          dir: string;
+          kind: "vr" | "flat" | "other";
+          installed: boolean;
+          dllInstalled?: boolean;
+          modInstalled?: boolean;
+          missingFiles?: string[];
+        }>;
+        error?: string;
+      }>;
+      titanfall2InstallMod: () => Promise<{
+        success: boolean;
+        copiedFiles?: string[];
+        destination?: string;
+        destinations?: Array<{ name: string; kind: string; dir: string }>;
+        profilesInstalled?: string[];
+        warning?: string;
+        error?: string;
+      }>;
       // Generic Screen Health Watcher API
       screenHealthExportProfile: (profile: Record<string, any>) => Promise<{
         success: boolean;
@@ -1288,6 +1350,90 @@ export async function gunmancontractsInstallMod(): Promise<{
   error?: string;
 }> {
   return await ensureBridge().gunmancontractsInstallMod();
+}
+
+export type Titanfall2Status = {
+  success?: boolean;
+  running: boolean;
+  events_received?: number;
+  last_event_ts?: number | null;
+  last_event_type?: string | null;
+  error?: string;
+};
+
+export async function titanfall2Start(): Promise<{ success: boolean; error?: string }> {
+  return await ensureBridge().titanfall2Start();
+}
+
+export async function titanfall2Stop(): Promise<{ success: boolean; error?: string }> {
+  return await ensureBridge().titanfall2Stop();
+}
+
+export async function titanfall2Status(): Promise<Titanfall2Status> {
+  return await ensureBridge().titanfall2Status();
+}
+
+export async function titanfall2GetSettings(): Promise<{
+  success: boolean;
+  gameDir?: string | null;
+  solenoidRecoil?: SolenoidRecoilSettings;
+  error?: string;
+}> {
+  return await ensureBridge().titanfall2GetSettings();
+}
+
+export async function titanfall2SetSolenoidRecoil(
+  solenoidRecoil: Partial<SolenoidRecoilSettings>
+): Promise<{ success: boolean; solenoidRecoil?: SolenoidRecoilSettings; error?: string }> {
+  return await ensureBridge().titanfall2SetSolenoidRecoil(solenoidRecoil);
+}
+
+export async function titanfall2BrowseGameDir(): Promise<{
+  success: boolean;
+  gameDir?: string;
+  canceled?: boolean;
+  error?: string;
+}> {
+  return await ensureBridge().titanfall2BrowseGameDir();
+}
+
+export type Titanfall2ProfileStatus = {
+  name: string;
+  dir: string;
+  kind: "vr" | "flat" | "other";
+  installed: boolean;
+  dllInstalled?: boolean;
+  modInstalled?: boolean;
+  missingFiles?: string[];
+};
+
+export async function titanfall2CheckModInstalled(): Promise<{
+  success: boolean;
+  installed?: boolean;
+  allProfilesInstalled?: boolean;
+  dllInstalled?: boolean;
+  modInstalled?: boolean;
+  sourceAvailable?: boolean;
+  missingFiles?: string[];
+  gameDir?: string;
+  gameRoot?: string;
+  tf2vrDir?: string;
+  profiles?: Titanfall2ProfileStatus[];
+  error?: string;
+}> {
+  return await ensureBridge().titanfall2CheckModInstalled();
+}
+
+export async function titanfall2InstallMod(): Promise<{
+  success: boolean;
+  copiedFiles?: string[];
+  destination?: string;
+  destinations?: Array<{ name: string; kind: string; dir: string }>;
+  profilesInstalled?: string[];
+  warning?: string;
+  error?: string;
+}> {
+  return await ensureBridge().titanfall2InstallMod();
 }
 
 // -------------------------------------------------------------------------

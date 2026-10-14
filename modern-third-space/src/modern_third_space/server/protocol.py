@@ -80,6 +80,11 @@ class CommandType(Enum):
     GUNMANCONTRACTS_STOP = "gunmancontracts_stop"
     GUNMANCONTRACTS_STATUS = "gunmancontracts_status"
     GUNMANCONTRACTS_EVENT = "gunmancontracts_event"
+    # Titanfall 2 VR (Northstar TCP client)
+    TITANFALL2_START = "titanfall2_start"
+    TITANFALL2_STOP = "titanfall2_stop"
+    TITANFALL2_STATUS = "titanfall2_status"
+    TITANFALL2_EVENT = "titanfall2_event"
     # Generic Screen Health Watcher (screen capture)
     SCREEN_HEALTH_START = "screen_health_start"
     SCREEN_HEALTH_STOP = "screen_health_stop"
@@ -158,6 +163,10 @@ class EventType(Enum):
     GUNMANCONTRACTS_STARTED = "gunmancontracts_started"
     GUNMANCONTRACTS_STOPPED = "gunmancontracts_stopped"
     GUNMANCONTRACTS_GAME_EVENT = "gunmancontracts_game_event"
+    # Titanfall 2 VR
+    TITANFALL2_STARTED = "titanfall2_started"
+    TITANFALL2_STOPPED = "titanfall2_stopped"
+    TITANFALL2_GAME_EVENT = "titanfall2_game_event"
     # Generic Screen Health Watcher (screen capture)
     SCREEN_HEALTH_STARTED = "screen_health_started"
     SCREEN_HEALTH_STOPPED = "screen_health_stopped"
@@ -210,6 +219,8 @@ class Command:
     angle: Optional[float] = None  # Damage angle in degrees
     weapon: Optional[str] = None  # Optional weapon class (pistol/shotgun/rifle/…)
     holster: Optional[str] = None  # Optional holster slot ("hip" | "shoulder")
+    intensity: Optional[float] = None  # 0..1 strength multiplier (Titanfall 2 explosions, charge)
+    group: Optional[str] = None  # ProTube kick group: full | heavy | pistol | rifle
     damage: Optional[float] = None  # Damage amount
     health_remaining: Optional[float] = None  # Remaining health
     cause: Optional[str] = None  # Death cause
@@ -264,6 +275,8 @@ class Command:
             angle=data.get("angle"),
             weapon=data.get("weapon"),
             holster=data.get("holster"),
+            intensity=data.get("intensity"),
+            group=data.get("group"),
             damage=data.get("damage"),
             health_remaining=data.get("health_remaining"),
             cause=data.get("cause"),
@@ -1163,6 +1176,77 @@ def response_gunmancontracts_event(
 ) -> Response:
     return Response(
         response="gunmancontracts_event",
+        req_id=req_id,
+        success=success,
+        message=error,
+    )
+
+
+def event_titanfall2_started() -> Event:
+    return Event(event=EventType.TITANFALL2_STARTED.value)
+
+
+def event_titanfall2_stopped() -> Event:
+    return Event(event=EventType.TITANFALL2_STOPPED.value)
+
+
+def event_titanfall2_game_event(
+    event_type: str,
+    params: Optional[Dict[str, Any]] = None,
+) -> Event:
+    return Event(
+        event=EventType.TITANFALL2_GAME_EVENT.value,
+        event_type=event_type,
+        params=params,
+        hand=(params or {}).get("hand"),
+    )
+
+
+def response_titanfall2_start(
+    success: bool,
+    error: Optional[str] = None,
+    req_id: Optional[str] = None,
+) -> Response:
+    return Response(
+        response="titanfall2_start",
+        req_id=req_id,
+        success=success,
+        message=error,
+    )
+
+
+def response_titanfall2_stop(success: bool, req_id: Optional[str] = None) -> Response:
+    return Response(
+        response="titanfall2_stop",
+        req_id=req_id,
+        success=success,
+    )
+
+
+def response_titanfall2_status(
+    running: bool,
+    events_received: int = 0,
+    last_event_ts: Optional[float] = None,
+    last_event_type: Optional[str] = None,
+    req_id: Optional[str] = None,
+) -> Response:
+    return Response(
+        response="titanfall2_status",
+        req_id=req_id,
+        running=running,
+        events_received=events_received,
+        last_event_ts=last_event_ts,
+        last_event_type=last_event_type,
+    )
+
+
+def response_titanfall2_event(
+    success: bool,
+    error: Optional[str] = None,
+    req_id: Optional[str] = None,
+) -> Response:
+    return Response(
+        response="titanfall2_event",
         req_id=req_id,
         success=success,
         message=error,

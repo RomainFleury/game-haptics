@@ -4,6 +4,7 @@ export { L4D2IntegrationPage } from "./L4D2IntegrationPage";
 export { PistolWhipIntegrationPage } from "./PistolWhipIntegrationPage";
 export { BattleSisterIntegrationPage } from "./BattleSisterIntegrationPage";
 export { GunmanContractsIntegrationPage } from "./GunmanContractsIntegrationPage";
+export { Titanfall2IntegrationPage } from "./Titanfall2IntegrationPage";
 export { ScreenHealthIntegrationPage } from "./ScreenHealthIntegrationPage";
 export { ScreenHealthBuilderPage } from "./ScreenHealthBuilderPage";
 export { ScreenHealthSettingsPage } from "./ScreenHealthSettingsPage";
