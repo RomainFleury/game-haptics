@@ -73,6 +73,16 @@ export function BattleSisterIntegrationPage() {
           "Select the Battle Sister folder below and click Install Mod (builds ThirdSpace_BattleSister.dll if needed)",
       "Start the vest daemon, click Start on this page, then launch the game",
     ],
+    credits: {
+      summary:
+        "Harmony hooks are adapted from Florian’s (floh-bhaptics) Battle Sister bHaptics mod. Our MelonLoader DLL sends events to the Third Space daemon instead of bHaptics.",
+      links: [
+        {
+          label: "BattleSister_bhaptics (Florian)",
+          url: "https://github.com/floh-bhaptics/BattleSister_bhaptics",
+        },
+      ],
+    },
   };
 
   const configurationPanel = (
@@ -164,6 +174,13 @@ export function BattleSisterIntegrationPage() {
           <strong className="text-slate-300">Start this integration</strong> before launching the game.
         </li>
       </ol>
+      <p className="text-slate-500 text-xs">
+        Based on Florian&apos;s{" "}
+        <a className="underline text-sky-400" href="https://github.com/floh-bhaptics/BattleSister_bhaptics" target="_blank" rel="noreferrer">
+          BattleSister_bhaptics
+        </a>
+        .
+      </p>
     </div>
   );
 

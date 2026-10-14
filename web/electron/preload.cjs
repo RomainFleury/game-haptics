@@ -118,6 +118,18 @@ contextBridge.exposeInMainWorld("vestBridge", {
   gunmancontractsCheckModInstalled: () => ipcRenderer.invoke("gunmancontracts:checkModInstalled"),
   gunmancontractsInstallMod: () => ipcRenderer.invoke("gunmancontracts:installMod"),
 
+  titanfall2Start: () => ipcRenderer.invoke("titanfall2:start"),
+  titanfall2Stop: () => ipcRenderer.invoke("titanfall2:stop"),
+  titanfall2Status: () => ipcRenderer.invoke("titanfall2:status"),
+  titanfall2GetSettings: () => ipcRenderer.invoke("titanfall2:getSettings"),
+  titanfall2SetSolenoidRecoil: (solenoidRecoil) =>
+    ipcRenderer.invoke("titanfall2:setSolenoidRecoil", solenoidRecoil),
+  titanfall2BrowseGameDir: () => ipcRenderer.invoke("titanfall2:browseGameDir"),
+  titanfall2GetGameDir: () => ipcRenderer.invoke("titanfall2:getGameDir"),
+  titanfall2SetGameDir: (gameDir) => ipcRenderer.invoke("titanfall2:setGameDir", gameDir),
+  titanfall2CheckModInstalled: () => ipcRenderer.invoke("titanfall2:checkModInstalled"),
+  titanfall2InstallMod: () => ipcRenderer.invoke("titanfall2:installMod"),
+
   // Predefined Effects Library API
   playEffect: (effectName) => ipcRenderer.invoke("effects:play", effectName),
   listEffectsLibrary: () => ipcRenderer.invoke("effects:list"),

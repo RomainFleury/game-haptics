@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <ProjectGuid>{A3C1E8D2-4F55-4B9A-9C10-7E2F8D11B0A1}</ProjectGuid>
+    <RootNamespace>ThirdSpace_Titanfall2</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <PropertyGroup Label="UserMacros">
+    <Tf2GameDir></Tf2GameDir>
+    <Tf2Profile>TF2VR</Tf2Profile>
+    <DeployToGame>false</DeployToGame>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <PropertyGroup>
+    <OutDir>$(SolutionDir)bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)obj\$(Platform)\$(Configuration)\</IntDir>
+    <TargetName>ThirdSpace_Titanfall2</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <Optimization>Disabled</Optimization>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;NOMINMAX;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <PreprocessorDefinitions>NDEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PostBuildEvent>
+      <Message>Package plugins+mods zip (optional deploy)</Message>
+      <Command>set "PKG_DIR=$(OutDir)package"
+set "PKG_ZIP=$(OutDir)ThirdSpace_Titanfall2.zip"
+if exist "%PKG_DIR%" rmdir /s /q "%PKG_DIR%"
+if exist "%PKG_ZIP%" del /q "%PKG_ZIP%"
+xcopy /Y /Q "$(TargetPath)" "%PKG_DIR%\plugins\" &gt;nul || (echo ERROR: packaging failed &amp; exit /b 1)
+xcopy /Y /Q /E /I "$(ProjectDir)mod\ThirdSpace_Titanfall2" "%PKG_DIR%\mods\ThirdSpace_Titanfall2\" &gt;nul || (echo ERROR: packaging failed &amp; exit /b 1)
+tar -a -c -f "%PKG_ZIP%" -C "%PKG_DIR%" plugins mods || (echo ERROR: could not create zip &amp; exit /b 1)
+echo Packaged "%PKG_ZIP%"
+if /I not "$(DeployToGame)"=="true" exit /b 0
+if "$(Tf2GameDir)"=="" (echo ERROR: set Tf2GameDir &amp; exit /b 1)
+set "PROFILE_DIR=$(Tf2GameDir)\$(Tf2Profile)"
+xcopy /Y /Q "$(TargetPath)" "%PROFILE_DIR%\plugins\"
+xcopy /Y /Q /E /I "$(ProjectDir)mod\ThirdSpace_Titanfall2" "%PROFILE_DIR%\mods\ThirdSpace_Titanfall2\"
+echo Deployed to %PROFILE_DIR%</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="src\northstar.h" />
+    <ClInclude Include="src\log.h" />
+    <ClInclude Include="src\daemon.h" />
+    <ClInclude Include="src\squirrel.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\plugin.cpp" />
+    <ClCompile Include="src\log.cpp" />
+    <ClCompile Include="src\daemon.cpp" />
+    <ClCompile Include="src\squirrel.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="mod\ThirdSpace_Titanfall2\mod.json" />
+    <None Include="mod\ThirdSpace_Titanfall2\mod\scripts\vscripts\tf2vr_ts_client.nut" />
+    <None Include="mod\ThirdSpace_Titanfall2\mod\scripts\vscripts\tf2vr_ts_server.nut" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

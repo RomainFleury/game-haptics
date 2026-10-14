@@ -1,7 +1,7 @@
 import { useCS2Integration, CS2GameEvent } from "../../hooks/useCS2Integration";
 import { GameIntegrationPage } from "../../components/GameIntegrationPage";
 import { getIntegratedGame } from "../../data/integratedGames";
-import type { GameEvent, EventDisplayInfo } from "../../types/integratedGames";
+import type { GameEvent, EventDisplayInfo, ModInfo } from "../../types/integratedGames";
 
 const game = getIntegratedGame("cs2")!;
 
@@ -167,6 +167,35 @@ export function CS2IntegrationPage() {
     </div>
   );
 
+  const modInfo: ModInfo = {
+    name: "CS2 Game State Integration",
+    downloadUrl:
+      "https://developer.valvesoftware.com/wiki/Counter-Strike:_Global_Offensive_Game_State_Integration",
+    installInstructions: [
+      "Set your CS2 config folder (or Auto-detect)",
+      "Click Save to CS2 to write gamestate_integration_thirdspace.cfg",
+      "Start CS2, join a match, then click Start here",
+    ],
+    credits: {
+      summary:
+        "Haptic event choices (damage, flash, bomb, round flow) are inspired by official bHaptics and OWO Counter-Strike 2 experiences. The GSI listener builds on open Counter-Strike GSI libraries.",
+      links: [
+        {
+          label: "bHaptics Counter-Strike 2",
+          url: "https://www.bhaptics.com/games/experiences/counter-strike-2/",
+        },
+        {
+          label: "OWO Counter-Strike 2",
+          url: "https://owogame.com/game/counter-strike-2/",
+        },
+        {
+          label: "CounterStrike2GSI (antonpup)",
+          url: "https://github.com/antonpup/CounterStrike2GSI",
+        },
+      ],
+    },
+  };
+
   // Setup guide
   const setupGuide = (
     <div className="space-y-3 text-sm">
@@ -181,6 +210,21 @@ export function CS2IntegrationPage() {
       </ol>
       <p className="text-slate-500 text-xs">
         💡 The config file will be saved as <code className="bg-slate-800 px-1 rounded">gamestate_integration_thirdspace.cfg</code>
+      </p>
+      <p className="text-slate-500 text-xs">
+        Haptics inspired by{" "}
+        <a className="underline text-sky-400" href="https://www.bhaptics.com/games/experiences/counter-strike-2/" target="_blank" rel="noreferrer">
+          bHaptics CS2
+        </a>{" "}
+        and{" "}
+        <a className="underline text-sky-400" href="https://owogame.com/game/counter-strike-2/" target="_blank" rel="noreferrer">
+          OWO CS2
+        </a>
+        ; GSI parsing follows libraries like{" "}
+        <a className="underline text-sky-400" href="https://github.com/antonpup/CounterStrike2GSI" target="_blank" rel="noreferrer">
+          CounterStrike2GSI
+        </a>
+        .
       </p>
     </div>
   );
@@ -199,6 +243,7 @@ export function CS2IntegrationPage() {
       formatEventDetails={formatEventDetails}
       configurationPanel={configurationPanel}
       setupGuide={setupGuide}
+      modInfo={modInfo}
     />
   );
 }

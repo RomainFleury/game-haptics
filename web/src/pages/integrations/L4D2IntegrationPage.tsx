@@ -1,7 +1,7 @@
 import { useL4D2Integration } from "../../hooks/useL4D2Integration";
 import { GameIntegrationPage } from "../../components/GameIntegrationPage";
 import { getIntegratedGame } from "../../data/integratedGames";
-import type { GameEvent, EventDisplayInfo } from "../../types/integratedGames";
+import type { GameEvent, EventDisplayInfo, ModInfo } from "../../types/integratedGames";
 import { useState } from "react";
 
 const game = getIntegratedGame("l4d2")!;
@@ -241,6 +241,35 @@ export function L4D2IntegrationPage() {
     </div>
   );
 
+  const modInfo: ModInfo = {
+    name: "Third Space L4D2 VScript mod",
+    downloadUrl:
+      "https://github.com/RomainFleury/game-haptics/tree/master/misc-documentations/bhaptics-svg-24-nov/l4d2/third-space-vest-mod",
+    installInstructions: [
+      "Select your L4D2 game directory and click Install Mod",
+      "Add -condebug to Steam launch options",
+      "Launch L4D2, start a match, then click Start here",
+    ],
+    credits: {
+      summary:
+        "Haptic event design (directional damage, weapon fire, healing, death) is inspired by bHaptics and OWO FPS integrations. Console-log watching follows the same -condebug pattern used by Half-Life: Alyx haptic mods. There is no dedicated L4D2 bHaptics/OWO mod — this VScript is ours.",
+      links: [
+        {
+          label: "bHaptics (FPS haptic patterns)",
+          url: "https://www.bhaptics.com/games/experiences/counter-strike-2/",
+        },
+        {
+          label: "OWO (FPS haptic patterns)",
+          url: "https://owogame.com/game/counter-strike-2/",
+        },
+        {
+          label: "Alyx Tactsuit / console events",
+          url: "https://www.nexusmods.com/halflifealyx/mods/6",
+        },
+      ],
+    },
+  };
+
   // Setup guide
   const setupGuide = (
     <div className="space-y-3 text-sm">
@@ -287,6 +316,21 @@ export function L4D2IntegrationPage() {
       <p className="text-slate-500 text-xs mt-2">
         💡 Haptic events: Taking damage (directional), incapacitation, death, adrenaline injection
       </p>
+      <p className="text-slate-500 text-xs">
+        Event design inspired by{" "}
+        <a className="underline text-sky-400" href="https://www.bhaptics.com/games/experiences/counter-strike-2/" target="_blank" rel="noreferrer">
+          bHaptics
+        </a>{" "}
+        /{" "}
+        <a className="underline text-sky-400" href="https://owogame.com/game/counter-strike-2/" target="_blank" rel="noreferrer">
+          OWO
+        </a>{" "}
+        FPS integrations; log watching follows Alyx-style{" "}
+        <a className="underline text-sky-400" href="https://www.nexusmods.com/halflifealyx/mods/6" target="_blank" rel="noreferrer">
+          console haptic mods
+        </a>
+        .
+      </p>
     </div>
   );
 
@@ -309,6 +353,7 @@ export function L4D2IntegrationPage() {
       formatEventDetails={formatEventDetails}
       configurationPanel={configurationPanel}
       setupGuide={setupGuide}
+      modInfo={modInfo}
     />
   );
 }

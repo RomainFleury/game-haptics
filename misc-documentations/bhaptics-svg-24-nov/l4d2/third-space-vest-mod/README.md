@@ -164,6 +164,8 @@ The Python side applies an ~80 ms cooldown so automatic weapons do not flood the
 - Created for Third Space Vest haptic integration
 - Uses L4D2's VScript (Squirrel) API
 - Compatible with existing L4D2 mods
+- Haptic event design inspired by [bHaptics](https://www.bhaptics.com/games/experiences/counter-strike-2/) and [OWO](https://owogame.com/game/counter-strike-2/) FPS integrations (no dedicated L4D2 mod existed)
+- Console-log approach follows Half-Life: Alyx haptic mods ([Tactsuit Alyx](https://www.nexusmods.com/halflifealyx/mods/6))
 
 ## Support
 

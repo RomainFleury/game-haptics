@@ -165,7 +165,11 @@ death:
 
 ### Implementation Reference
 
-This implementation is inspired by:
+**Haptic event design** (damage, flashbang, bomb, round flow) is inspired by:
+- [bHaptics Counter-Strike 2](https://www.bhaptics.com/games/experiences/counter-strike-2/)
+- [OWO Counter-Strike 2](https://owogame.com/game/counter-strike-2/)
+
+**GSI listener / parsing** builds on:
 - [csgo-gsi-python](https://github.com/Erlendeikeland/csgo-gsi-python) - Simple Python GSI server
 - [CSGO-GSI](https://github.com/mdarvanaghi/CSGO-GSI) - Structured Python GSI library
 - [CounterStrike2GSI (C#)](https://github.com/antonpup/CounterStrike2GSI) - Full-featured C# library

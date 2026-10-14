@@ -79,6 +79,17 @@ export const integratedGames: IntegratedGameConfig[] = [
     requiresMod: true,
     tags: ["vr", "fps", "western", "beta"],
   },
+  {
+    id: "titanfall2",
+    name: "Titanfall 2",
+    description: "Campaign vest + gun recoil via Northstar (flat + VR profiles)",
+    icon: "🤖",
+    steamAppId: 1237970,
+    hasConfiguration: true,
+    hasSetupGuide: true,
+    requiresMod: true,
+    tags: ["vr", "fps", "titanfall", "beta"],
+  },
 ];
 
 /**

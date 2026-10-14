@@ -132,6 +132,20 @@ export function AlyxIntegrationPage() {
     downloadUrl: modInfo.download_url,
     githubUrl: modInfo.github_url,
     installInstructions: modInfo.install_instructions.map(s => s.replace(/^\d+\.\s*/, "")),
+    credits: {
+      summary:
+        "This integration reads console events from the community Half-Life: Alyx haptic Lua scripts (NexusMods bHaptics Tactsuit). Related script work is also published by Florian (floh-bhaptics).",
+      links: [
+        {
+          label: "bHaptics Tactsuit (NexusMods)",
+          url: modInfo.download_url || "https://www.nexusmods.com/halflifealyx/mods/6",
+        },
+        {
+          label: "HalLifeAlyx_OWO (Florian)",
+          url: "https://github.com/floh-bhaptics/HalLifeAlyx_OWO",
+        },
+      ],
+    },
   } : undefined;
 
   // Configuration panel for log path

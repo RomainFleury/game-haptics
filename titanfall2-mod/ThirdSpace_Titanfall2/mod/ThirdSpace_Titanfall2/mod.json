@@ -1,0 +1,22 @@
+{
+	"Name": "ThirdSpace_Titanfall2",
+	"Description": "Third Space Vest + gun solenoid forwarder for Titanfall 2 (flat Northstar and CircuitLord VR). Event hooks adapted from floh-bhaptics/Titanfall2VR_bhaptics.",
+	"Version": "0.1.0",
+	"LoadPriority": 3,
+	"RequiredOnClient": false,
+
+	"PluginDependencies": [ "TF2VR_THIRDSPACE" ],
+
+	"Scripts": [
+		{
+			"Path": "tf2vr_ts_client.nut",
+			"RunOn": "CLIENT && SP",
+			"ClientCallback": { "After": "TF2VR_TS_ClientInit" }
+		},
+		{
+			"Path": "tf2vr_ts_server.nut",
+			"RunOn": "SERVER && SP",
+			"ServerCallback": { "After": "TF2VR_TS_ServerInit" }
+		}
+	]
+}
