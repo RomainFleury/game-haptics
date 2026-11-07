@@ -1,0 +1,6 @@
+board:
+  name: recoil_dongle
+  full_name: Recoil Link USB Dongle (Nordic PCA10059)
+  vendor: recoil
+  socs:
+    - name: nrf52840

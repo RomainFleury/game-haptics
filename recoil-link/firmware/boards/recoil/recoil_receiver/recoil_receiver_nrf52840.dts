@@ -1,0 +1,64 @@
+/dts-v1/;
+#include <nordic/nrf52840_qiaa.dtsi>
+
+/ {
+	model = "Recoil Link Receiver";
+	compatible = "nordic,nrf52840";
+
+	chosen {
+		zephyr,sram = &sram0;
+		zephyr,flash = &flash0;
+		zephyr,code-partition = &code_partition;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		status_led: led_0 {
+			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
+			label = "Blue LED";
+		};
+	};
+
+	gates {
+		compatible = "gpio-leds";
+		solenoid_gate: solenoid_gate {
+			/* P0.10, Pro Micro D10. Active-high into the MOSFET gate. */
+			gpios = <&gpio0 10 GPIO_ACTIVE_HIGH>;
+			label = "Solenoid gate";
+		};
+	};
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&gpiote {
+	status = "okay";
+};
+
+&clock {
+	status = "okay";
+};
+
+&wdt {
+	status = "okay";
+};
+
+&flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* 0x00000..0x26000 is the Adafruit MBR + SoftDevice. Do not place code there. */
+		code_partition: partition@26000 {
+			label = "code_partition";
+			reg = <0x00026000 0x000CE000>;
+		};
+	};
+};

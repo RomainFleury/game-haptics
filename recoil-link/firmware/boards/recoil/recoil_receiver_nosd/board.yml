@@ -1,0 +1,6 @@
+board:
+  name: recoil_receiver_nosd
+  full_name: Recoil Link Receiver (nice!nano v2 pinout, no SoftDevice)
+  vendor: recoil
+  socs:
+    - name: nrf52840

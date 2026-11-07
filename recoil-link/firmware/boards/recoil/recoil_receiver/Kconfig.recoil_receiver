@@ -1,0 +1,7 @@
+# Recoil receiver, nice!nano v2 pinout.
+# Application starts at 0x26000 so the Adafruit UF2 bootloader and its
+# SoftDevice region are left in place. Flash the other board target
+# (recoil_receiver_nosd) if INFO_UF2.TXT does not mention a SoftDevice.
+
+config BOARD_RECOIL_RECEIVER
+	select SOC_NRF52840_QIAA

@@ -1,0 +1,5 @@
+# Same pinout as recoil_receiver, but the UF2 bootloader has no SoftDevice
+# and the application starts at 0x1000 (Makerdiary-style layout).
+
+config BOARD_RECOIL_RECEIVER_NOSD
+	select SOC_NRF52840_QIAA

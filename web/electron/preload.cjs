@@ -205,4 +205,16 @@ contextBridge.exposeInMainWorld("vestBridge", {
   relayMouseStart: (options) => ipcRenderer.invoke("relay:mouseStart", options),
   relayMouseStop: () => ipcRenderer.invoke("relay:mouseStop"),
   relayMouseStatus: () => ipcRenderer.invoke("relay:mouseStatus"),
+
+  // Wireless recoil link (nRF52840 dongle)
+  recoilListPorts: () => ipcRenderer.invoke("recoil:listPorts"),
+  recoilConnect: (port) => ipcRenderer.invoke("recoil:connect", port),
+  recoilDisconnect: () => ipcRenderer.invoke("recoil:disconnect"),
+  recoilStatus: () => ipcRenderer.invoke("recoil:status"),
+  recoilPulse: (durationMs) => ipcRenderer.invoke("recoil:pulse", durationMs),
+
+  // Recoil Link UF2 install
+  recoilFirmwareListImages: () => ipcRenderer.invoke("recoilFirmware:listImages"),
+  recoilFirmwareListTargets: () => ipcRenderer.invoke("recoilFirmware:listTargets"),
+  recoilFirmwareFlash: (payload) => ipcRenderer.invoke("recoilFirmware:flash", payload),
 });

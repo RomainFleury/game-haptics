@@ -23,8 +23,7 @@ namespace
 
             // Northstar's Log expects a mutable char*.
             char copy[1024];
-            std::strncpy(copy, msg, sizeof(copy) - 1);
-            copy[sizeof(copy) - 1] = '\0';
+            strncpy_s(copy, sizeof(copy), msg, _TRUNCATE);
             g_sys->Log(g_pluginHandle, nsLevel, copy);
             return;
         }

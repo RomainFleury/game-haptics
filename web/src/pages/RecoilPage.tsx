@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   relayConnect,
   relayDisconnect,
@@ -289,18 +290,26 @@ export function RecoilPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <header>
-        <h1 className="text-2xl md:text-3xl font-bold text-white">Recoil</h1>
-        <p className="mt-2 text-sm md:text-base text-slate-400">
-          Connect the USB LC module that drives a solenoid for mechanical recoil feedback.
-          Prefer short pulses — solenoids overheat if left energized.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-white">Recoil</h1>
+            <p className="mt-2 text-sm md:text-base text-slate-400">
+              USB LC relay for a wired solenoid. Prefer short pulses — coils overheat if left on.
+              Wireless kit setup is on{" "}
+              <Link to="/recoil-link" className="text-sky-400 hover:text-sky-300">
+                Recoil Kit Setup
+              </Link>
+              .
+            </p>
+          </div>
+        </div>
       </header>
 
       <section className="rounded-2xl bg-slate-800/80 p-4 md:p-5 shadow-lg ring-1 ring-white/5 space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-sm uppercase tracking-wide text-slate-400">Connection</p>
-            <h2 className="text-xl font-semibold text-white">USB device</h2>
+            <h2 className="text-xl font-semibold text-white">USB LC relay</h2>
             <p className="mt-1 text-sm text-slate-400">
               Plugs in over USB; Windows exposes it as a COM port (USB serial).
             </p>

@@ -101,13 +101,13 @@ export function Titanfall2IntegrationPage() {
     installInstructions: [
       "For VR: install Titanfall 2 VR (CircuitLord) — creates TF2VR",
       "For flat: install Northstar — creates R2Northstar",
-      "Build titanfall2-mod (msbuild Release|x64) so ThirdSpace_Titanfall2.dll exists",
-      "Select the Titanfall 2 folder and click Install Mod (copies into every profile found)",
+      "Select the Titanfall 2 folder and click Install Mod (builds the DLL if needed, then copies into every profile)",
+      "If build fails: install VS 2022 Build Tools with C++, or run titanfall2-mod\\build.ps1",
       "Start the vest daemon, click Start here, then launch VR or Northstar as usual",
     ],
     credits: {
       summary:
-        "Event detection and Squirrel hooks are adapted from Florian’s (floh-bhaptics) Titanfall 2 VR bHaptics/ProTube plugin. VR play uses CircuitLord’s Titanfall 2 VR (Northstar TF2VR profile).",
+        "Event detection and Squirrel hooks are adapted from Florian’s (floh-bhaptics) Titanfall 2 VR bHaptics/ProTube plugin. VR play uses CircuitLord’s Titanfall 2 VR (TF2VR); flat play uses the Northstar Launcher (R2Northstar).",
       links: [
         {
           label: "Titanfall2VR_bhaptics (Florian)",
@@ -116,6 +116,10 @@ export function Titanfall2IntegrationPage() {
         {
           label: "Titanfall 2 VR (CircuitLord)",
           url: "https://github.com/CircuitLord/CircuitLordVRModInstaller",
+        },
+        {
+          label: "Northstar Launcher",
+          url: "https://github.com/R2Northstar/Northstar/releases",
         },
       ],
     },
@@ -190,7 +194,7 @@ export function Titanfall2IntegrationPage() {
         )}
         {!modStatus.sourceAvailable && (
           <p className="mt-2 text-xs text-amber-400/90">
-            Build the plugin first: see titanfall2-mod/README.md
+            Plugin DLL missing — Install Mod will try to build it (needs VS 2022 C++ Build Tools), or run titanfall2-mod\build.ps1
           </p>
         )}
       </div>
@@ -237,10 +241,16 @@ export function Titanfall2IntegrationPage() {
       </p>
       <ol className="list-decimal list-inside space-y-2 text-slate-400">
         <li>
-          <strong className="text-slate-300">VR:</strong> CircuitLord installer →{" "}
-          <code className="bg-slate-800 px-1 rounded">TF2VR</code>.{" "}
-          <strong className="text-slate-300">Flat:</strong> Northstar →{" "}
-          <code className="bg-slate-800 px-1 rounded">R2Northstar</code>.
+          <strong className="text-slate-300">VR:</strong>{" "}
+          <a className="underline text-sky-400" href="https://github.com/CircuitLord/CircuitLordVRModInstaller" target="_blank" rel="noreferrer">
+            CircuitLord installer
+          </a>{" "}
+          → <code className="bg-slate-800 px-1 rounded">TF2VR</code>.{" "}
+          <strong className="text-slate-300">Flat:</strong>{" "}
+          <a className="underline text-sky-400" href="https://github.com/R2Northstar/Northstar/releases" target="_blank" rel="noreferrer">
+            Northstar Launcher
+          </a>{" "}
+          → <code className="bg-slate-800 px-1 rounded">R2Northstar</code>.
         </li>
         <li>
           <strong className="text-slate-300">Build</strong>{" "}
@@ -258,10 +268,14 @@ export function Titanfall2IntegrationPage() {
         Based on Florian&apos;s{" "}
         <a className="underline text-sky-400" href="https://github.com/floh-bhaptics/Titanfall2VR_bhaptics" target="_blank" rel="noreferrer">
           Titanfall2VR_bhaptics
-        </a>{" "}
-        and CircuitLord&apos;s{" "}
+        </a>
+        , CircuitLord&apos;s{" "}
         <a className="underline text-sky-400" href="https://github.com/CircuitLord/CircuitLordVRModInstaller" target="_blank" rel="noreferrer">
           Titanfall 2 VR
+        </a>
+        , and the{" "}
+        <a className="underline text-sky-400" href="https://github.com/R2Northstar/Northstar/releases" target="_blank" rel="noreferrer">
+          Northstar Launcher
         </a>
         .
       </p>

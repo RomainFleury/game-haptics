@@ -1,0 +1,6 @@
+board:
+  name: recoil_receiver
+  full_name: Recoil Link Receiver (nice!nano v2, SoftDevice flash layout)
+  vendor: recoil
+  socs:
+    - name: nrf52840

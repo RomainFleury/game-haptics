@@ -1,0 +1,32 @@
+---
+description: Exact Recoil Link lab boards on this bench (PCA10059 + buttonless Nice!Nano-style)
+alwaysApply: true
+---
+
+# Recoil Link — lab hardware (this bench)
+
+Canonical detail: `recoil-link/LAB_HARDWARE.md`.  
+End-to-end setup: `recoil-link/SETUP.md`.  
+Prefer those over older Micro Dev / UF2BOOT wording.
+
+## Emitter (verified photo)
+
+- **Is:** Nordic **nRF52840 Dongle PCA10059** (blue, Nordic logo, USB-A, SW1 + side RESET).
+- **Is not:** Makerdiary MDK USB / “Micro Dev”.
+- **DFU:** Sideways **RESET** only (not white SW1). Red LED pulse/fade = Open bootloader.
+- **USB:** `VID_1915`/`PID_521F` CDC COM port. **No UF2BOOT drive ever.**
+- **Flash:** `nrfutil` / nordicsemi Open DFU zip → COM port (or nRF Connect Programmer). Do not tell the user to copy a `.uf2` onto a disk for this board.
+- Firmware board name `recoil_dongle` still has MDK-ish LED pins; treat PCA10059 pinout as the real target when changing DTS.
+
+## Receiver (verified photo)
+
+- **Is:** Nice!Nano–style nRF52840, USB-C, Pro Micro pins, **no reset tactile button**.
+- **DFU:** Short **RST→GND twice** (tweezers). Expect `NICENANO` + `INFO_UF2.TXT`.
+- **Flash:** UF2 — SoftDevice present → `recoil-receiver.uf2`; else `recoil-receiver-nosd.uf2`.
+- Keep the spare receiver unpowered.
+
+## Agent behavior
+
+- Do not invent a Makerdiary Micro Dev on this bench.
+- Kit Setup “UF2 Ready” applies to the **receiver**; for the **emitter**, ready = red DFU + Nordic COM.
+- Solenoid gate on receiver firmware: **P0.10**.

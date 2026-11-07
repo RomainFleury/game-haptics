@@ -74,7 +74,7 @@ To pin a specific Python version, create `windows\.env.bat`:
 set TSV_PYTHON=py -3.14
 ```
 
-See `.env.bat.example` for more options.
+See `.env.bat.example` for more options, and [python-environment-handling.md](./python-environment-handling.md) for the full rationale.
 
 ---
 

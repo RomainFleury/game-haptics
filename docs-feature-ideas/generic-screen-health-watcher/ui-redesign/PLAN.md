@@ -434,7 +434,7 @@ Preview Page (/games/screen_health/preview/:id)
 
 ## Open Questions
 
-See `SCREENHEALTH_UI_REDESIGN_QA.md` for accumulated questions and answers.
+See `QA.md` for accumulated questions and answers.
 
 ## Implementation Order
 

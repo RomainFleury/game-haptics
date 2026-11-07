@@ -1,0 +1,10 @@
+# Intermediate west/sysbuild trees (large; never ship)
+build/
+
+# Local DFU helper venv (optional)
+.dfu-venv/
+
+# Keep dist/ release artifacts in git (see dist/README.md).
+# Do not ignore *.uf2 / *.hex / *.zip under dist/.
+
+vendor/

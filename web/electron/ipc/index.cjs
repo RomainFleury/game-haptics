@@ -20,6 +20,7 @@ const { registerScreenHealthHandlers } = require("./screenHealthHandlers.cjs");
 const { registerMultiVestHandlers } = require("./multiVestHandlers.cjs");
 const { registerModsHandlers } = require("./modsHandlers.cjs");
 const { registerRelayHandlers } = require("./relayHandlers.cjs");
+const { registerRecoilFirmwareHandlers } = require("./recoilFirmwareHandlers.cjs");
 const { registerOcrHandlers } = require("./ocrHandlers.cjs");
 
 /**
@@ -70,6 +71,7 @@ function registerAllHandlers(getDaemonBridge, getMainWindow, reconnectToDaemon) 
 
   // USB LC relay / solenoid recoil
   registerRelayHandlers();
+  registerRecoilFirmwareHandlers();
   registerOcrHandlers();
 
   console.log("✓ IPC handlers registered");
@@ -87,6 +89,7 @@ module.exports = {
   registerEffectsHandlers,
   registerScreenHealthHandlers,
   registerRelayHandlers,
+  registerRecoilFirmwareHandlers,
   registerOcrHandlers,
 };
 

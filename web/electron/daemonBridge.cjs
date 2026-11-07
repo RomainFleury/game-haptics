@@ -1418,6 +1418,72 @@ class DaemonBridge extends EventEmitter {
     }
   }
 
+  async recoilListPorts() {
+    try {
+      const response = await this.sendCommand("recoil_list_ports");
+      return {
+        success: true,
+        ports: response.ports ?? [],
+      };
+    } catch (error) {
+      return { success: false, ports: [], error: error.message };
+    }
+  }
+
+  async recoilConnect(port) {
+    try {
+      const response = await this.sendCommand("recoil_connect", { port });
+      return {
+        success: response.success ?? response.ok ?? false,
+        recoil: response.recoil,
+        error: response.message,
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  async recoilDisconnect() {
+    try {
+      const response = await this.sendCommand("recoil_disconnect");
+      return {
+        success: response.success ?? response.ok ?? true,
+        error: response.message,
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  async recoilStatus() {
+    try {
+      const response = await this.sendCommand("recoil_status");
+      return {
+        success: true,
+        connected: response.connected ?? false,
+        recoil: response.recoil ?? null,
+      };
+    } catch (error) {
+      return { success: false, connected: false, recoil: null, error: error.message };
+    }
+  }
+
+  async recoilPulse(durationMs = 25) {
+    try {
+      const response = await this.sendCommand("recoil_pulse", {
+        duration_ms: durationMs,
+      });
+      return {
+        success: response.success ?? response.ok ?? false,
+        duration_ms: response.duration_ms,
+        recoil: response.recoil,
+        error: response.message,
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
   async relayMouseStart(options = {}) {
     try {
       const params = {

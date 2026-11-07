@@ -108,6 +108,13 @@ class CommandType(Enum):
     RELAY_MOUSE_START = "relay_mouse_start"
     RELAY_MOUSE_STOP = "relay_mouse_stop"
     RELAY_MOUSE_STATUS = "relay_mouse_status"
+    # Wireless recoil link (nRF52840 dongle)
+    RECOIL_LIST_PORTS = "recoil_list_ports"
+    RECOIL_CONNECT = "recoil_connect"
+    RECOIL_DISCONNECT = "recoil_disconnect"
+    RECOIL_STATUS = "recoil_status"
+    RECOIL_PULSE = "recoil_pulse"
+    RECOIL_SET = "recoil_set"
 
 
 class EventType(Enum):
@@ -185,6 +192,10 @@ class EventType(Enum):
     RELAY_PULSED = "relay_pulsed"
     RELAY_MOUSE_STARTED = "relay_mouse_started"
     RELAY_MOUSE_STOPPED = "relay_mouse_stopped"
+    # Wireless recoil link
+    RECOIL_CONNECTED = "recoil_connected"
+    RECOIL_DISCONNECTED = "recoil_disconnected"
+    RECOIL_PULSED = "recoil_pulsed"
 
 
 @dataclass
@@ -364,6 +375,7 @@ class Event:
     on: Optional[bool] = None
     duration_ms: Optional[int] = None
     relay: Optional[Dict[str, Any]] = None
+    recoil: Optional[Dict[str, Any]] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary, excluding None values."""
@@ -422,6 +434,7 @@ class Response:
     relay: Optional[Dict[str, Any]] = None
     on: Optional[bool] = None
     duration_ms: Optional[int] = None
+    recoil: Optional[Dict[str, Any]] = None
     pulses: Optional[int] = None
     fire_mode: Optional[str] = None
     fire_rate_rpm: Optional[int] = None
@@ -1553,6 +1566,99 @@ def response_relay_pulse(
         ok=success,
         duration_ms=duration_ms,
         relay=relay,
+        message=error,
+    )
+
+
+def event_recoil_connected(recoil: Dict[str, Any]) -> Event:
+    return Event(event=EventType.RECOIL_CONNECTED.value, recoil=recoil, port=recoil.get("port"))
+
+
+def event_recoil_disconnected() -> Event:
+    return Event(event=EventType.RECOIL_DISCONNECTED.value)
+
+
+def event_recoil_pulsed(duration_ms: int, recoil: Optional[Dict[str, Any]] = None) -> Event:
+    return Event(event=EventType.RECOIL_PULSED.value, duration_ms=duration_ms, recoil=recoil)
+
+
+def response_recoil_list_ports(ports: list, req_id: Optional[str] = None) -> Response:
+    return Response(response="recoil_list_ports", req_id=req_id, ok=True, ports=ports)
+
+
+def response_recoil_connect(
+    success: bool,
+    recoil: Optional[Dict[str, Any]] = None,
+    error: Optional[str] = None,
+    req_id: Optional[str] = None,
+) -> Response:
+    return Response(
+        response="recoil_connect",
+        req_id=req_id,
+        success=success,
+        ok=success,
+        connected=bool(recoil and recoil.get("connected")),
+        recoil=recoil,
+        message=error,
+    )
+
+
+def response_recoil_disconnect(
+    success: bool,
+    error: Optional[str] = None,
+    req_id: Optional[str] = None,
+) -> Response:
+    return Response(
+        response="recoil_disconnect",
+        req_id=req_id,
+        success=success,
+        ok=success,
+        message=error,
+    )
+
+
+def response_recoil_status(recoil: Dict[str, Any], req_id: Optional[str] = None) -> Response:
+    return Response(
+        response="recoil_status",
+        req_id=req_id,
+        ok=True,
+        connected=bool(recoil.get("connected")),
+        recoil=recoil,
+    )
+
+
+def response_recoil_pulse(
+    success: bool,
+    duration_ms: Optional[int] = None,
+    recoil: Optional[Dict[str, Any]] = None,
+    error: Optional[str] = None,
+    req_id: Optional[str] = None,
+) -> Response:
+    return Response(
+        response="recoil_pulse",
+        req_id=req_id,
+        success=success,
+        ok=success,
+        duration_ms=duration_ms,
+        recoil=recoil,
+        message=error,
+    )
+
+
+def response_recoil_set(
+    success: bool,
+    on: Optional[bool] = None,
+    recoil: Optional[Dict[str, Any]] = None,
+    error: Optional[str] = None,
+    req_id: Optional[str] = None,
+) -> Response:
+    return Response(
+        response="recoil_set",
+        req_id=req_id,
+        success=success,
+        ok=success,
+        on=on,
+        recoil=recoil,
         message=error,
     )
 

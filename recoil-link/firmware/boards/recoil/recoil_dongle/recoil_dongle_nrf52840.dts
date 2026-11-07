@@ -1,0 +1,89 @@
+/dts-v1/;
+#include <nordic/nrf52840_qiaa.dtsi>
+
+/*
+ * Lab emitter target aligned with Nordic nRF52840 Dongle (PCA10059).
+ * Prefer building TX with west -b nrf52840dongle/nrf52840 (see build.ps1).
+ * This board remains for overlays / alternate tooling that still pass
+ * -DBOARD_ROOT=… recoil_dongle.
+ */
+
+/ {
+	model = "Recoil Link USB Dongle (PCA10059)";
+	compatible = "nordic,nrf52840-dongle-nrf52840";
+
+	chosen {
+		zephyr,sram = &sram0;
+		zephyr,flash = &flash0;
+		zephyr,code-partition = &code_partition;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		/* PCA10059 LD2 red — Open DFU also uses this LED */
+		status_led: led_0 {
+			gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;
+			label = "Red LED";
+		};
+	};
+
+	aliases {
+		led0 = &status_led;
+		led1 = &status_led;
+		watchdog0 = &wdt0;
+	};
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&gpiote {
+	status = "okay";
+};
+
+&clock {
+	status = "okay";
+};
+
+&wdt {
+	status = "okay";
+};
+
+&uicr {
+	gpio-as-nreset;
+};
+
+zephyr_udc0: &usbd {
+	status = "okay";
+
+	cdc_acm_uart0: cdc_acm_uart0 {
+		compatible = "zephyr,cdc-acm-uart";
+	};
+};
+
+&flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* Nordic Open Bootloader layout (MBR + app + bootloader high). */
+		boot_partition: partition@0 {
+			label = "mcuboot";
+			reg = <0x00000000 DT_SIZE_K(12)>;
+		};
+		code_partition: partition@1000 {
+			label = "image-0";
+			reg = <0x00001000 0x000cf000>;
+		};
+		/*
+		 * 0x000D0000.. end reserved for Nordic nRF5 SDK Open Bootloader /
+		 * settings — do not place the Recoil app there.
+		 */
+	};
+};

@@ -11,6 +11,7 @@
 const { ipcMain, dialog, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const { spawnSync } = require("child_process");
 const { getDaemonBridge } = require("../daemonBridge.cjs");
 const titanfall2Storage = require("../titanfall2Storage.cjs");
 
@@ -33,6 +34,37 @@ function getBuiltDllPath() {
     if (fs.existsSync(file)) return file;
   }
   return null;
+}
+
+/** Build via titanfall2-mod/build.ps1 (needs VS 2022 C++ / Build Tools). */
+function tryBuildPlugin() {
+  const script = path.join(repoRoot(), "titanfall2-mod", "build.ps1");
+  if (!fs.existsSync(script)) {
+    return { ok: false, error: `Build script not found: ${script}` };
+  }
+  const result = spawnSync(
+    "powershell.exe",
+    ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script],
+    {
+      encoding: "utf8",
+      timeout: 300000,
+      windowsHide: true,
+    }
+  );
+  const output = `${result.stdout || ""}\n${result.stderr || ""}`.trim();
+  if (result.error) {
+    return { ok: false, error: result.error.message, output };
+  }
+  if (result.status !== 0) {
+    return {
+      ok: false,
+      error:
+        output.split("\n").filter(Boolean).slice(-10).join(" ").slice(0, 900) ||
+        `build.ps1 exited ${result.status}`,
+      output,
+    };
+  }
+  return { ok: true, output };
 }
 
 function getModSourceDir() {
@@ -253,12 +285,25 @@ function registerTitanfall2Handlers(getMainWindow) {
           "No Northstar profile found. Select the Titanfall 2 folder (with TF2VR and/or R2Northstar), or install CircuitLord VR / Northstar first.",
       };
     }
-    const sourceDll = getBuiltDllPath();
+    let sourceDll = getBuiltDllPath();
     const sourceMod = getModSourceDir();
+    if (!sourceDll) {
+      const built = tryBuildPlugin();
+      if (!built.ok) {
+        return {
+          success: false,
+          error:
+            `Could not build ${PLUGIN_DLL}. Install Visual Studio 2022 Build Tools with the ` +
+            `"Desktop development with C++" workload, then click Install Mod again. ` +
+            `(Or run titanfall2-mod\\build.ps1.) ${built.error}`,
+        };
+      }
+      sourceDll = getBuiltDllPath();
+    }
     if (!sourceDll) {
       return {
         success: false,
-        error: `Build ${PLUGIN_DLL} first (see titanfall2-mod/README.md)`,
+        error: `${PLUGIN_DLL} is still missing after the build. Check titanfall2-mod/build.ps1 output.`,
       };
     }
     if (!sourceMod) {

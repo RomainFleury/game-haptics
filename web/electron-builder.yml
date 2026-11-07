@@ -68,6 +68,15 @@ extraResources:
       - "*.dll"
       - "README.md"
 
+  # Recoil Link kit firmware (committed under recoil-link/firmware/dist)
+  - from: "../recoil-link/firmware/dist/"
+    to: "recoil-link/firmware/"
+    filter:
+      - "*.uf2"
+      - "*.hex"
+      - "*.zip"
+      - "README.md"
+
 # Don't pack into asar (easier debugging, daemon access)
 asar: true
 asarUnpack:

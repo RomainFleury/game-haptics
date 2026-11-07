@@ -42,4 +42,9 @@ Examples of how the feature would be used.
 
 - **`usb-relay-solenoid-recoil/`** — USB LC relay → solenoid mechanical recoil hardware + daemon/UI
 - **`generic-screen-health-watcher/`** — Screen ROI detectors for hit/health without game mods
+- **`BETTERCAM_FIX_PLAN.md`** — BetterCam capture backend fix plan (retry / multi-ROI)
+
+## Where plans go
+
+Keep implementation plans, checklists, and redesign notes **in this folder** (or under the relevant feature subfolder). Do not add them at the repository root — root stays for README, changelog, onboarding, and build docs.
 

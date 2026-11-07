@@ -1,5 +1,8 @@
 build
 !modern-third-space/build/vest-daemon-entry.py
+# Recoil Link: keep release firmware binaries in git; ignore west intermediates only
+!recoil-link/firmware/dist/
+!recoil-link/firmware/dist/**
 node_modules
 repomix-output.*
 

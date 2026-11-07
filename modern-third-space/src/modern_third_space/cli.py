@@ -352,6 +352,133 @@ def _cs2_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def _daemon_request(host: str, port: int, payload: dict) -> dict:
+    import json
+    import socket
+
+    with socket.create_connection((host, port), timeout=3) as sock:
+        sock.sendall((json.dumps(payload) + "\n").encode("utf-8"))
+        buf = b""
+        sock.settimeout(3)
+        while b"\n" not in buf:
+            chunk = sock.recv(4096)
+            if not chunk:
+                break
+            buf += chunk
+    line = buf.split(b"\n", 1)[0]
+    return json.loads(line.decode("utf-8"))
+
+
+def _cmd_recoil(args: argparse.Namespace) -> int:
+    """Bench the wireless dongle, or attach it to the running vest daemon."""
+    from .recoil_link import RecoilLink, list_recoil_ports
+
+    action = getattr(args, "recoil_action", None)
+    if not action:
+        print("Usage: recoil {list,connect,ping,pulse,on,off,stop}")
+        return 1
+    if action == "list":
+        try:
+            ports = list_recoil_ports()
+        except Exception as exc:
+            print(exc)
+            return 1
+        if not ports:
+            print("No serial ports found.")
+            return 0
+        for port in ports:
+            mark = "recoil" if port.get("likely_recoil") else "      "
+            print(f"{mark}  {port.get('device') or '':<8} {port.get('description') or ''}")
+        return 0
+
+    if getattr(args, "daemon", False):
+        host = getattr(args, "daemon_host", None) or "127.0.0.1"
+        daemon_port = int(getattr(args, "daemon_port", None) or 5050)
+        payload: dict = {"cmd": "recoil_status"}
+        if action == "connect":
+            if not args.port:
+                print("--port is required")
+                return 1
+            payload = {"cmd": "recoil_connect", "port": args.port}
+        elif action == "ping":
+            payload = {"cmd": "recoil_status"}
+        elif action == "pulse":
+            payload = {"cmd": "recoil_pulse", "duration_ms": int(getattr(args, "ms", None) or 25)}
+        elif action == "on":
+            payload = {"cmd": "recoil_set", "on": True}
+        elif action == "off":
+            payload = {"cmd": "recoil_set", "on": False}
+        elif action == "stop":
+            payload = {"cmd": "recoil_set", "on": False}
+        else:
+            print(f"Unknown recoil action: {action}")
+            return 1
+        try:
+            reply = _daemon_request(host, daemon_port, payload)
+        except Exception as exc:
+            print(exc)
+            return 1
+        if action == "on" and reply.get("success", reply.get("ok")):
+            print("Lease started on the daemon. Press Enter to release.")
+            try:
+                input()
+            except EOFError:
+                pass
+            try:
+                reply = _daemon_request(host, daemon_port, {"cmd": "recoil_set", "on": False})
+            except Exception as exc:
+                print(exc)
+                return 1
+        ok = reply.get("success", reply.get("ok"))
+        if not ok:
+            print(reply.get("message") or reply)
+            return 1
+        print(reply)
+        return 0
+
+    port = getattr(args, "port", None)
+    if not port:
+        print("--port is required (or pass --daemon while the vest daemon is running)")
+        return 1
+    link = RecoilLink()
+    result = None
+    try:
+        link.connect(port)
+        if action in ("ping", "connect"):
+            result = link.ping()
+        elif action == "pulse":
+            result = link.pulse(int(getattr(args, "ms", None) or 25))
+        elif action == "on":
+            result = link.set_hold(True)
+            if result.ok:
+                print("Lease started. Press Enter to release.")
+                try:
+                    input()
+                except EOFError:
+                    pass
+                result = link.set_hold(False)
+        elif action == "off":
+            result = link.set_hold(False)
+        elif action == "stop":
+            result = link.stop()
+        else:
+            print(f"Unknown recoil action: {action}")
+            return 1
+    except Exception as exc:
+        print(exc)
+        return 1
+    finally:
+        # STOP would cancel a pulse the receiver has already started timing.
+        link.disconnect(stop=action in ("on", "off", "stop"))
+    if result is None or not result.ok:
+        print(result.error if result is not None else "failed")
+        return 1
+    print(
+        f"OK seq={result.seq} state={result.state} flags={result.flags} ack_seq={result.ack_seq}"
+    )
+    return 0
+
+
 def _cmd_relay(args: argparse.Namespace) -> int:
     """Handle relay subcommands (standalone serial, no daemon required)."""
     from .relay_cli import main as relay_main
@@ -432,6 +559,7 @@ COMMANDS: Dict[str, Any] = {
     "daemon": _cmd_daemon,
     "cs2": _cmd_cs2,
     "relay": _cmd_relay,
+    "recoil": _cmd_recoil,
     "ocr": _cmd_ocr,
 }
 
@@ -555,6 +683,34 @@ def build_parser() -> argparse.ArgumentParser:
     _add_relay_port_args(relay_pulse)
     relay_pulse.add_argument("--ms", type=int, default=40, help="Pulse duration in ms")
 
+    recoil = sub.add_parser("recoil", help="Wireless nRF52840 solenoid link (standalone serial)")
+    recoil_sub = recoil.add_subparsers(dest="recoil_action")
+    recoil_sub.add_parser("list", help="List serial ports")
+
+    def _add_recoil_port(p: argparse.ArgumentParser, *, port_required: bool = False) -> None:
+        p.add_argument("--port", required=port_required, help="Dongle COM port (e.g. COM5)")
+        p.add_argument(
+            "--daemon",
+            action="store_true",
+            help="Talk to the vest daemon (so games use this dongle)",
+        )
+        p.add_argument("--daemon-host", default="127.0.0.1")
+        p.add_argument("--daemon-port", type=int, default=5050)
+
+    recoil_connect = recoil_sub.add_parser("connect", help="Open the dongle on the daemon")
+    _add_recoil_port(recoil_connect, port_required=True)
+    recoil_ping = recoil_sub.add_parser("ping", help="Confirm the receiver answers")
+    _add_recoil_port(recoil_ping)
+    recoil_pulse = recoil_sub.add_parser("pulse", help="Fire one receiver-timed pulse")
+    _add_recoil_port(recoil_pulse)
+    recoil_pulse.add_argument("--ms", type=int, default=25, help="Pulse duration in ms (5-100)")
+    recoil_on = recoil_sub.add_parser("on", help="Hold the lease until Enter")
+    _add_recoil_port(recoil_on)
+    recoil_off = recoil_sub.add_parser("off", help="Release the lease")
+    _add_recoil_port(recoil_off)
+    recoil_stop = recoil_sub.add_parser("stop", help="Force the receiver output off")
+    _add_recoil_port(recoil_stop)
+
     ocr = sub.add_parser("ocr", help="Ammo OCR eval against HUD crops")
     ocr_sub = ocr.add_subparsers(dest="ocr_action")
     ocr_sub.add_parser("engines", help="List OCR backends and whether they are installed")
@@ -587,6 +743,8 @@ def main(argv: list[str] | None = None) -> int:
     if command == "cs2":
         return handler(args)
     if command == "relay":
+        return handler(args)
+    if command == "recoil":
         return handler(args)
     if command == "ocr":
         return handler(args)

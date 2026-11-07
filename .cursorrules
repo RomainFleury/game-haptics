@@ -10,6 +10,7 @@ This is a Third Space Vest haptic device debugger. It maintains legacy driver co
 - **Isolation principle**: `vest/` package must stay isolated from game integrations
 - **Daemon-centric**: All vest commands should go through the daemon (TCP port 5050)
 - **Canonical repo only**: `RomainFleury/game-haptics` is the only GitHub project that matters. Do **not** add a git `upstream` remote for `qdot/libthirdspacevest`, open PRs against it, or treat it as a contribution target — that parent is archived and unused. When creating PRs, always target `master` on `RomainFleury/game-haptics`.
+- **Recoil lab boards (this bench):** see `recoil-link/LAB_HARDWARE.md`, `recoil-link/SETUP.md`, and `.cursor/rules/recoil-lab-hardware.mdc`. Emitter = Nordic **PCA10059** (Open DFU / no UF2 disk). Receiver = buttonless Nice!Nano-style (RST↔GND twice → UF2). Do not assume Makerdiary Micro Dev.
 
 ## Architecture
 

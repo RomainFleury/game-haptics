@@ -8,4 +8,5 @@ This folder contains planning + implementation tracking docs for the “Generic 
 - `phase-b/`: directional expansions
 - `phase-c/`: health bar tracking
 - `phase-d/`: health number OCR
+- `ui-redesign/`: Screen Health UI redesign plan / checklist / Q&A (completed)
 - `future-next-steps/`: deferred ideas (includes the former Phase E)

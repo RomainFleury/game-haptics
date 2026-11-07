@@ -7,6 +7,8 @@ import { MiniGamesPage } from "./pages/MiniGamesPage";
 import { GamePage } from "./pages/GamePage";
 import { VestsPage } from "./pages/VestsPage";
 import { RecoilPage } from "./pages/RecoilPage";
+import { RecoilLinkPage } from "./pages/RecoilLinkPage";
+import { RecoilFlashPage } from "./pages/RecoilFlashPage";
 import { DaemonSettingsPage } from "./pages/DaemonSettingsPage";
 
 function App() {
@@ -19,6 +21,9 @@ function App() {
           <Route path="games/:gameId/*" element={<IntegrationPage />} />
           <Route path="debug" element={<DebugPage />} />
           <Route path="recoil" element={<RecoilPage />} />
+          <Route path="recoil-link" element={<RecoilLinkPage />} />
+          <Route path="recoil-link/flash" element={<RecoilFlashPage />} />
+          <Route path="recoil/flash" element={<Navigate to="/recoil-link/flash" replace />} />
           <Route path="daemon-settings" element={<DaemonSettingsPage />} />
           <Route path="relay" element={<Navigate to="/recoil" replace />} />
           <Route path="vests" element={<VestsPage />} />

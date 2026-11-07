@@ -199,6 +199,7 @@ export type RelayPortInfo = {
   vid?: number | null;
   pid?: number | null;
   likely_relay?: boolean;
+  likely_recoil?: boolean;
 };
 
 export type RelayStatusInfo = {
@@ -208,6 +209,67 @@ export type RelayStatusInfo = {
   address?: number;
   is_on?: boolean;
   last_error?: string | null;
+};
+
+export type RecoilLinkStatus = {
+  connected: boolean;
+  port?: string | null;
+  holding?: boolean;
+  last_error?: string | null;
+  last_seq?: number;
+  output_on?: boolean;
+  flags?: number;
+};
+
+export type RecoilFirmwareRole = "dongle" | "receiver" | "receiver_nosd" | "unknown";
+
+export type RecoilFirmwareImage = {
+  role: RecoilFirmwareRole;
+  path: string;
+  source: string;
+  bytes: number;
+};
+
+export type RecoilFirmwareTarget = {
+  path: string;
+  driveLetter?: string | null;
+  volumeLabel: string;
+  suggestedRole: RecoilFirmwareRole;
+  confidence: "high" | "medium" | "low";
+  reason: string;
+  softDevice?: string | null;
+  model?: string | null;
+  boardId?: string | null;
+};
+
+export type RecoilFirmwareImagesResult = {
+  success: boolean;
+  images: RecoilFirmwareImage[];
+  searchRoots?: string[];
+  error?: string;
+};
+
+export type RecoilSerialHint = {
+  port: string;
+  description: string;
+  vidPid: string;
+};
+
+export type RecoilFirmwareTargetsResult = {
+  success: boolean;
+  targets: RecoilFirmwareTarget[];
+  serialHints?: RecoilSerialHint[];
+  error?: string;
+};
+
+export type RecoilFirmwareFlashResult = {
+  success: boolean;
+  ejected?: boolean;
+  role?: RecoilFirmwareRole;
+  imagePath?: string;
+  destPath?: string;
+  message?: string;
+  error?: string;
 };
 
 export type RelayListPortsResult = {
@@ -884,6 +946,18 @@ declare global {
       relayMouseStart: (options?: RelayMouseStartOptions) => Promise<RelayMouseStatusResult>;
       relayMouseStop: () => Promise<RelayMouseStatusResult>;
       relayMouseStatus: () => Promise<RelayMouseStatusResult>;
+      recoilListPorts: () => Promise<RelayListPortsResult>;
+      recoilConnect: (port: string) => Promise<{ success: boolean; recoil?: RecoilLinkStatus; error?: string }>;
+      recoilDisconnect: () => Promise<{ success: boolean; error?: string }>;
+      recoilStatus: () => Promise<{ success: boolean; connected: boolean; recoil?: RecoilLinkStatus | null; error?: string }>;
+      recoilPulse: (durationMs?: number) => Promise<{ success: boolean; duration_ms?: number; recoil?: RecoilLinkStatus; error?: string }>;
+      recoilFirmwareListImages: () => Promise<RecoilFirmwareImagesResult>;
+      recoilFirmwareListTargets: () => Promise<RecoilFirmwareTargetsResult>;
+      recoilFirmwareFlash: (payload: {
+        targetPath: string;
+        role: RecoilFirmwareRole;
+        imagePath?: string;
+      }) => Promise<RecoilFirmwareFlashResult>;
     };
   }
 }
@@ -1640,6 +1714,51 @@ export async function relaySet(on: boolean): Promise<RelaySetResult> {
 
 export async function relayPulse(durationMs = 40): Promise<RelayPulseResult> {
   return await ensureBridge().relayPulse(durationMs);
+}
+
+export async function recoilListPorts(): Promise<RelayListPortsResult> {
+  return await ensureBridge().recoilListPorts();
+}
+
+export async function recoilConnect(
+  port: string
+): Promise<{ success: boolean; recoil?: RecoilLinkStatus; error?: string }> {
+  return await ensureBridge().recoilConnect(port);
+}
+
+export async function recoilDisconnect(): Promise<{ success: boolean; error?: string }> {
+  return await ensureBridge().recoilDisconnect();
+}
+
+export async function recoilStatus(): Promise<{
+  success: boolean;
+  connected: boolean;
+  recoil?: RecoilLinkStatus | null;
+  error?: string;
+}> {
+  return await ensureBridge().recoilStatus();
+}
+
+export async function recoilPulse(
+  durationMs = 25
+): Promise<{ success: boolean; duration_ms?: number; recoil?: RecoilLinkStatus; error?: string }> {
+  return await ensureBridge().recoilPulse(durationMs);
+}
+
+export async function recoilFirmwareListImages(): Promise<RecoilFirmwareImagesResult> {
+  return await ensureBridge().recoilFirmwareListImages();
+}
+
+export async function recoilFirmwareListTargets(): Promise<RecoilFirmwareTargetsResult> {
+  return await ensureBridge().recoilFirmwareListTargets();
+}
+
+export async function recoilFirmwareFlash(payload: {
+  targetPath: string;
+  role: RecoilFirmwareRole;
+  imagePath?: string;
+}): Promise<RecoilFirmwareFlashResult> {
+  return await ensureBridge().recoilFirmwareFlash(payload);
 }
 
 export async function relayMouseStart(

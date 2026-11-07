@@ -23,22 +23,31 @@ Stock Steam/EA launch without Northstar does **not** load this plugin.
 
 ## Build
 
+Needs Visual Studio 2022 (or Build Tools) with the **Desktop development with C++** workload.
+
 ```powershell
 cd titanfall2-mod
+.\build.ps1
+```
+
+Or:
+
+```powershell
 msbuild ThirdSpace_Titanfall2.sln /p:Configuration=Release /p:Platform=x64
 ```
 
 Output:
 
 - `bin\x64\Release\ThirdSpace_Titanfall2.dll`
+- `mods\titanfall2\ThirdSpace_Titanfall2.dll` (copied by `build.ps1`)
 - `bin\x64\Release\ThirdSpace_Titanfall2.zip` (plugins + mods layout)
 
 ## Install
 
 ### From the app (recommended)
 
-1. Build the DLL.
-2. On the Titanfall 2 page: Browse → Titanfall 2 game folder → **Install Mod (all profiles)**.
+1. On the Titanfall 2 page: Browse → Titanfall 2 game folder → **Install Mod (all profiles)**.
+2. If the DLL is missing, the app runs `titanfall2-mod\build.ps1` automatically (needs VS C++ tools).
 3. Start the daemon, click **Start**, then launch VR or Northstar.
 
 ### Manual

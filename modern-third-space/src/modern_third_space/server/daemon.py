@@ -161,9 +161,19 @@ from .protocol import (
     response_relay_mouse_start,
     response_relay_mouse_stop,
     response_relay_mouse_status,
+    event_recoil_connected,
+    event_recoil_disconnected,
+    event_recoil_pulsed,
+    response_recoil_list_ports,
+    response_recoil_connect,
+    response_recoil_disconnect,
+    response_recoil_status,
+    response_recoil_pulse,
+    response_recoil_set,
 )
 from ..relay import RelayController, list_ports as list_relay_ports, DEFAULT_ADDRESS, DEFAULT_BAUD
 from ..relay.mouse_recoil import MouseRecoilListener
+from ..recoil_link import RecoilLink, list_recoil_ports
 
 logger = logging.getLogger(__name__)
 
@@ -252,8 +262,11 @@ class VestDaemon:
             get_ocr_engine=lambda: str(self._ocr_settings.get("engine") or "windows_ocr"),
         )
 
-        # USB LC relay (solenoid / recoil)
+        # USB LC relay (solenoid / recoil) and the wireless link.
+        # When the dongle is connected, game recoil uses the link and leaves
+        # the wired relay alone.
         self._relay = RelayController()
+        self._recoil = RecoilLink()
         self._mouse_recoil = MouseRecoilListener(on_pulse=self._on_solenoid_recoil)
         
         self._loop: Optional[asyncio.AbstractEventLoop] = None
@@ -313,6 +326,10 @@ class VestDaemon:
             pass
         try:
             self._relay.disconnect()
+        except Exception:
+            pass
+        try:
+            self._recoil.disconnect()
         except Exception:
             pass
         
@@ -639,6 +656,24 @@ class VestDaemon:
 
         if cmd_type == CommandType.RELAY_MOUSE_STATUS:
             return await self._cmd_relay_mouse_status(command)
+
+        if cmd_type == CommandType.RECOIL_LIST_PORTS:
+            return await self._cmd_recoil_list_ports(command)
+
+        if cmd_type == CommandType.RECOIL_CONNECT:
+            return await self._cmd_recoil_connect(command)
+
+        if cmd_type == CommandType.RECOIL_DISCONNECT:
+            return await self._cmd_recoil_disconnect(command)
+
+        if cmd_type == CommandType.RECOIL_STATUS:
+            return await self._cmd_recoil_status(command)
+
+        if cmd_type == CommandType.RECOIL_PULSE:
+            return await self._cmd_recoil_pulse(command)
+
+        if cmd_type == CommandType.RECOIL_SET:
+            return await self._cmd_recoil_set(command)
         
         return response_error(f"Command not implemented: {command.cmd}", command.req_id)
     
@@ -1494,10 +1529,27 @@ class VestDaemon:
 
     def _on_solenoid_recoil(self, duration_ms: int) -> None:
         """
-        Pulse the USB LC relay for mechanical recoil.
+        Pulse mechanical recoil.
 
-        Called from game-integration watcher threads. No-ops if relay is disconnected.
+        Uses the wireless link when the dongle is connected. Otherwise pulses
+        the USB LC relay. A connected link does not also fire the wired relay.
         """
+        if self._recoil.status().connected:
+            try:
+                result = self._recoil.pulse(int(duration_ms))
+                if self._loop is not None:
+                    asyncio.run_coroutine_threadsafe(
+                        self._clients.broadcast(
+                            event_recoil_pulsed(int(duration_ms), self._recoil.status().to_dict())
+                        ),
+                        self._loop,
+                    )
+                if not result.ok:
+                    logger.warning("Wireless recoil pulse failed: %s", result.error)
+            except Exception as exc:
+                logger.warning("Wireless recoil pulse failed: %s", exc)
+            return
+
         status = self._relay.status()
         if not status.connected:
             return
@@ -1520,10 +1572,20 @@ class VestDaemon:
 
     def _on_solenoid_hold(self, on: bool) -> None:
         """
-        Hold or release the USB LC relay (reload cock_back → ON, cock_forward → OFF).
+        Hold or release mechanical recoil (reload cock_back → ON, cock_forward → OFF).
 
-        Uses RELOAD_HOLD_SAFETY_S (30s) so slow empty reloads can finish before the hard safety OFF.
+        The wireless receiver caps a hold at 1 s on / 500 ms cool. The wired
+        relay uses RELOAD_HOLD_SAFETY_S (30s).
         """
+        if self._recoil.status().connected:
+            try:
+                result = self._recoil.set_hold(bool(on))
+                if not result.ok:
+                    logger.warning("Wireless recoil hold failed: %s", result.error)
+            except Exception as exc:
+                logger.warning("Wireless recoil hold failed: %s", exc)
+            return
+
         status = self._relay.status()
         if not status.connected:
             return
@@ -2489,6 +2551,99 @@ class VestDaemon:
             error=st.get("last_error"),
             req_id=command.req_id,
         )
+
+    async def _cmd_recoil_list_ports(self, command: Command) -> Response:
+        try:
+            ports = await asyncio.to_thread(list_recoil_ports)
+            return response_recoil_list_ports(ports, req_id=command.req_id)
+        except Exception as exc:
+            return response_error(str(exc), command.req_id)
+
+    async def _cmd_recoil_connect(self, command: Command) -> Response:
+        if not command.port:
+            return response_recoil_connect(
+                success=False,
+                error="port is required",
+                req_id=command.req_id,
+            )
+        try:
+            await asyncio.to_thread(self._recoil.connect, command.port)
+            status = self._recoil.status().to_dict()
+            await self._clients.broadcast(event_recoil_connected(status))
+            return response_recoil_connect(success=True, recoil=status, req_id=command.req_id)
+        except Exception as exc:
+            return response_recoil_connect(
+                success=False,
+                error=str(exc),
+                req_id=command.req_id,
+            )
+
+    async def _cmd_recoil_disconnect(self, command: Command) -> Response:
+        try:
+            await asyncio.to_thread(self._recoil.disconnect)
+            await self._clients.broadcast(event_recoil_disconnected())
+            return response_recoil_disconnect(success=True, req_id=command.req_id)
+        except Exception as exc:
+            return response_recoil_disconnect(
+                success=False,
+                error=str(exc),
+                req_id=command.req_id,
+            )
+
+    async def _cmd_recoil_status(self, command: Command) -> Response:
+        return response_recoil_status(self._recoil.status().to_dict(), req_id=command.req_id)
+
+    async def _cmd_recoil_pulse(self, command: Command) -> Response:
+        if not self._recoil.status().connected:
+            return response_recoil_pulse(
+                success=False,
+                error="recoil link is not connected",
+                req_id=command.req_id,
+            )
+        duration_ms = int(command.duration_ms if command.duration_ms is not None else 25)
+        try:
+            result = await asyncio.to_thread(self._recoil.pulse, duration_ms)
+            status = self._recoil.status().to_dict()
+            if result.ok:
+                await self._clients.broadcast(event_recoil_pulsed(duration_ms, status))
+            return response_recoil_pulse(
+                success=result.ok,
+                duration_ms=duration_ms,
+                recoil=status,
+                error=result.error,
+                req_id=command.req_id,
+            )
+        except Exception as exc:
+            return response_recoil_pulse(
+                success=False,
+                error=str(exc),
+                req_id=command.req_id,
+            )
+
+    async def _cmd_recoil_set(self, command: Command) -> Response:
+        if not self._recoil.status().connected:
+            return response_recoil_set(
+                success=False,
+                error="recoil link is not connected",
+                req_id=command.req_id,
+            )
+        on = bool(command.on)
+        try:
+            result = await asyncio.to_thread(self._recoil.set_hold, on)
+            return response_recoil_set(
+                success=result.ok,
+                on=on,
+                recoil=self._recoil.status().to_dict(),
+                error=result.error,
+                req_id=command.req_id,
+            )
+        except Exception as exc:
+            return response_recoil_set(
+                success=False,
+                on=on,
+                error=str(exc),
+                req_id=command.req_id,
+            )
 
 
 def run_daemon(

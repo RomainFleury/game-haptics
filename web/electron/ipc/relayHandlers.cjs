@@ -50,6 +50,31 @@ function registerRelayHandlers() {
     const daemon = getDaemonBridge();
     return await daemon.relayMouseStatus();
   });
+
+  ipcMain.handle("recoil:listPorts", async () => {
+    const daemon = getDaemonBridge();
+    return await daemon.recoilListPorts();
+  });
+
+  ipcMain.handle("recoil:connect", async (_event, port) => {
+    const daemon = getDaemonBridge();
+    return await daemon.recoilConnect(port);
+  });
+
+  ipcMain.handle("recoil:disconnect", async () => {
+    const daemon = getDaemonBridge();
+    return await daemon.recoilDisconnect();
+  });
+
+  ipcMain.handle("recoil:status", async () => {
+    const daemon = getDaemonBridge();
+    return await daemon.recoilStatus();
+  });
+
+  ipcMain.handle("recoil:pulse", async (_event, durationMs) => {
+    const daemon = getDaemonBridge();
+    return await daemon.recoilPulse(durationMs);
+  });
 }
 
 module.exports = {
