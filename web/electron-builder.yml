@@ -68,6 +68,12 @@ extraResources:
       - "*.dll"
       - "README.md"
 
+  # Titanfall 2 Northstar plugin + mod package (built by titanfall2-mod/build.ps1 into mods/titanfall2/)
+  - from: "../mods/titanfall2/"
+    to: "mods/titanfall2/"
+    filter:
+      - "**/*"
+
   # Recoil Link kit firmware (committed under recoil-link/firmware/dist)
   - from: "../recoil-link/firmware/dist/"
     to: "recoil-link/firmware/"

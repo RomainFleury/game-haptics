@@ -1,4 +1,4 @@
-# Build ThirdSpace_Titanfall2.dll (Northstar plugin, x64 Release).
+﻿# Build ThirdSpace_Titanfall2.dll (Northstar plugin, x64 Release).
 # Usage:
 #   ./build.ps1
 #   ./build.ps1 -Configuration Debug
@@ -71,5 +71,32 @@ $destDir = Join-Path $modRoot "..\mods\titanfall2"
 New-Item -ItemType Directory -Path $destDir -Force | Out-Null
 Copy-Item $dllPath (Join-Path $destDir "ThirdSpace_Titanfall2.dll") -Force
 
+# Northstar mod package (mod.json + vscripts) for Electron Install Mod / release bundle
+$modSrc = Join-Path $modRoot "ThirdSpace_Titanfall2\mod\ThirdSpace_Titanfall2"
+$modDest = Join-Path $destDir "ThirdSpace_Titanfall2"
+if (-not (Test-Path (Join-Path $modSrc "mod.json"))) {
+    Write-Host "ERROR: Northstar mod folder missing mod.json at $modSrc" -ForegroundColor Red
+    exit 1
+}
+if (Test-Path $modDest) {
+    Remove-Item $modDest -Recurse -Force
+}
+Copy-Item $modSrc $modDest -Recurse -Force
+
+$readmeSrc = Join-Path $destDir "README.md"
+if (-not (Test-Path $readmeSrc)) {
+    @"
+# Titanfall 2 Northstar plugin
+
+Built by ``titanfall2-mod\build.ps1``. Electron **Install Mod** copies:
+
+- ``ThirdSpace_Titanfall2.dll`` → profile ``plugins\``
+- ``ThirdSpace_Titanfall2\`` → profile ``mods\``
+
+Release builds must ship this folder under ``mods/titanfall2/`` (see ``BUILD-RELEASE.md``).
+"@ | Set-Content -Encoding utf8 $readmeSrc
+}
+
 Write-Host "Built $dllPath" -ForegroundColor Green
 Write-Host "Copied to mods\titanfall2\ThirdSpace_Titanfall2.dll" -ForegroundColor Green
+Write-Host "Copied Northstar mod to mods\titanfall2\ThirdSpace_Titanfall2\" -ForegroundColor Green

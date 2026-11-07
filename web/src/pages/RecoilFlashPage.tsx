@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   recoilFirmwareFlash,
+  recoilFirmwareFlashEmitter,
   recoilFirmwareListImages,
   recoilFirmwareListTargets,
   type RecoilFirmwareImage,
@@ -13,7 +14,7 @@ import {
 const POLL_MS = 2000;
 
 const ROLE_LABEL: Record<Exclude<RecoilFirmwareRole, "unknown">, string> = {
-  dongle: "USB emitter (dongle)",
+  dongle: "USB emitter DFU package",
   receiver: "Receiver (SoftDevice)",
   receiver_nosd: "Receiver (no SoftDevice)",
 };
@@ -27,12 +28,6 @@ function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / (1024 * 1024)).toFixed(2)} MB`;
-}
-
-function isEmitterBootloader(t: RecoilFirmwareTarget): boolean {
-  if (t.suggestedRole === "dongle") return true;
-  const label = (t.volumeLabel || "").toUpperCase();
-  return label.includes("UF2BOOT") || label.includes("MDK");
 }
 
 function isReceiverBootloader(t: RecoilFirmwareTarget): boolean {
@@ -60,6 +55,18 @@ export function RecoilFlashPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const openDfuHints = useMemo(
+    () => serialHints.filter((h) => h.mode === "open_dfu"),
+    [serialHints]
+  );
+  const recoilTxHints = useMemo(
+    () => serialHints.filter((h) => h.mode === "recoil_tx"),
+    [serialHints]
+  );
+  const receiverBoot = useMemo(() => targets.find(isReceiverBootloader) ?? null, [targets]);
+  const dongleImage = images.find((img) => img.role === "dongle" && /\.zip$/i.test(img.path));
+  const dongleAny = dongleImage || images.find((img) => img.role === "dongle");
+
   const selected = useMemo(
     () => targets.find((t) => t.path === selectedPath) ?? null,
     [targets, selectedPath]
@@ -69,9 +76,6 @@ export function RecoilFlashPage() {
     roleOverride || selected?.suggestedRole || "unknown";
 
   const imageForRole = images.find((img) => img.role === effectiveRole);
-
-  const emitterBoot = useMemo(() => targets.find(isEmitterBootloader) ?? null, [targets]);
-  const receiverBoot = useMemo(() => targets.find(isReceiverBootloader) ?? null, [targets]);
 
   const refresh = useCallback(async (opts?: { quiet?: boolean }) => {
     if (!opts?.quiet) setBusy(true);
@@ -85,7 +89,7 @@ export function RecoilFlashPage() {
         setError(imgRes.error || "Failed to list firmware images");
       }
       if (!tgtRes.success && !opts?.quiet) {
-        setError(tgtRes.error || "Failed to scan for UF2 drives");
+        setError(tgtRes.error || "Failed to scan boards");
       }
       const nextTargets = tgtRes.targets || [];
       const nextHints = tgtRes.serialHints || [];
@@ -95,10 +99,6 @@ export function RecoilFlashPage() {
 
       setSelectedPath((prev) => {
         if (prev && nextTargets.some((t) => t.path === prev)) return prev;
-        if (boardHint === "emitter") {
-          const hit = nextTargets.find(isEmitterBootloader);
-          if (hit) return hit.path;
-        }
         if (boardHint === "receiver") {
           const hit = nextTargets.find(isReceiverBootloader);
           if (hit) return hit.path;
@@ -108,18 +108,22 @@ export function RecoilFlashPage() {
 
       if (!opts?.quiet) {
         setRoleOverride("");
-        if (nextTargets.length === 0) {
-          if (nextHints.length > 0) {
-            setMessage(
-              `Saw ${nextHints.map((h) => h.port).join(", ")} (Nordic serial) but no UF2BOOT drive. Hold the button before plugging into a USB2 port until Explorer shows a new drive, then release.`
-            );
-          } else {
-            setMessage(
-              "No board in bootloader yet. Emitter: hold button while plugging in. Receiver: double-tap reset. This page watches for the drive."
-            );
-          }
+        const dfu = nextHints.filter((h) => h.mode === "open_dfu");
+        const tx = nextHints.filter((h) => h.mode === "recoil_tx");
+        if (dfu.length) {
+          setMessage(
+            `Emitter Open DFU on ${dfu.map((h) => h.port).join(", ")} — ready to install.`
+          );
+        } else if (tx.length) {
+          setMessage(
+            `Emitter already running as Recoil Link TX (${tx.map((h) => h.port).join(", ")}).`
+          );
+        } else if (nextTargets.length) {
+          setMessage(`Found ${nextTargets.length} UF2 receiver volume(s)`);
         } else {
-          setMessage(`Found ${nextTargets.length} board(s) ready to flash`);
+          setMessage(
+            "Emitter: sideways RESET until red LED pulses. Receiver: short RST→GND twice for NICENANO."
+          );
         }
       }
     } catch (err) {
@@ -139,19 +143,38 @@ export function RecoilFlashPage() {
     return () => window.clearInterval(id);
   }, [refresh]);
 
-  const handleFlash = async () => {
+  const handleFlashEmitter = async () => {
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await recoilFirmwareFlashEmitter({
+        imagePath: dongleAny?.path,
+      });
+      if (!result.success) {
+        setError(result.error || "Emitter flash failed");
+        return;
+      }
+      setMessage(result.message || "Emitter flash complete");
+      window.setTimeout(() => void refresh({ quiet: true }), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleFlashReceiver = async () => {
     if (!selected) {
-      setError("Wait until a board shows as ready, then install");
+      setError("Wait until a NICENANO volume shows Ready, then install");
       return;
     }
-    if (effectiveRole === "unknown") {
-      setError("Choose Emitter or Receiver firmware before flashing");
+    if (effectiveRole === "unknown" || effectiveRole === "dongle") {
+      setError("Choose Receiver firmware before flashing");
       return;
     }
     if (!imageForRole) {
-      setError(
-        `No UF2 on disk for ${roleLabel(effectiveRole)}. Build firmware first (see below).`
-      );
+      setError(`No UF2 on disk for ${roleLabel(effectiveRole)}.`);
       return;
     }
     setBusy(true);
@@ -167,10 +190,8 @@ export function RecoilFlashPage() {
         setError(result.error || "Flash failed");
         return;
       }
-      setMessage(result.message || "Flash complete — unplug/replug normally when done");
-      window.setTimeout(() => {
-        void refresh({ quiet: true });
-      }, 1500);
+      setMessage(result.message || "Receiver flash complete");
+      window.setTimeout(() => void refresh({ quiet: true }), 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -178,87 +199,39 @@ export function RecoilFlashPage() {
     }
   };
 
-  const canInstall =
-    Boolean(selected) && effectiveRole !== "unknown" && Boolean(imageForRole) && !busy;
+  const emitterReady = openDfuHints.length > 0 && Boolean(dongleAny) && !busy;
+  const receiverReady =
+    Boolean(selected) &&
+    effectiveRole !== "unknown" &&
+    effectiveRole !== "dongle" &&
+    Boolean(imageForRole) &&
+    !busy;
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <header>
         <p className="text-sm text-slate-400">
           <Link to="/recoil-link" className="text-sky-400 hover:text-sky-300">
-            ← Recoil Kit Setup
+            ← Kit Setup
           </Link>
         </p>
         <h1 className="mt-2 text-2xl md:text-3xl font-bold text-white">Install kit firmware</h1>
         <p className="mt-2 text-sm md:text-base text-slate-400">
-          Do not press Install until a board shows <span className="text-emerald-300">Ready</span>{" "}
-          below. Then one click copies the matching <code className="text-slate-300">.uf2</code>.
+          Emitter (PCA10059) uses <span className="text-emerald-300">Open DFU</span> — red LED, no
+          disk. Receiver uses a <span className="text-emerald-300">UF2</span> drive.
         </p>
       </header>
-
-      <section className="rounded-2xl bg-slate-800/80 p-4 md:p-5 shadow-lg ring-1 ring-white/5 space-y-3">
-        <h2 className="text-lg font-semibold text-white">Waiting for boards (live)</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div
-            className={`rounded-xl p-3 ring-1 ${
-              emitterBoot
-                ? "bg-emerald-500/10 ring-emerald-500/40"
-                : "bg-slate-900/60 ring-white/5"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <p className="font-medium text-white">Emitter</p>
-              <span
-                className={`text-xs font-medium ${
-                  emitterBoot ? "text-emerald-300" : "text-slate-400"
-                }`}
-              >
-                {emitterBoot ? "Ready" : "Waiting"}
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-slate-400">
-              Hold button → plug USB → release (UF2BOOT)
-            </p>
-            {emitterBoot ? (
-              <p className="mt-2 text-sm text-emerald-100">{driveLabel(emitterBoot)}</p>
-            ) : serialHints.length > 0 ? (
-              <p className="mt-2 text-sm text-amber-200">
-                Serial {serialHints.map((h) => h.port).join(", ")} — not UF2 disk yet
-              </p>
-            ) : null}
-          </div>
-          <div
-            className={`rounded-xl p-3 ring-1 ${
-              receiverBoot
-                ? "bg-emerald-500/10 ring-emerald-500/40"
-                : "bg-slate-900/60 ring-white/5"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <p className="font-medium text-white">Receiver</p>
-              <span
-                className={`text-xs font-medium ${
-                  receiverBoot ? "text-emerald-300" : "text-slate-400"
-                }`}
-              >
-                {receiverBoot ? "Ready" : "Waiting"}
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-slate-400">
-              Double-tap reset, or short RST→GND twice if there is no button (NICENANO)
-            </p>
-            {receiverBoot && (
-              <p className="mt-2 text-sm text-emerald-100">{driveLabel(receiverBoot)}</p>
-            )}
-          </div>
-        </div>
-      </section>
 
       <section className="rounded-2xl bg-slate-800/80 p-4 md:p-5 shadow-lg ring-1 ring-white/5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-sm uppercase tracking-wide text-slate-400">Firmware files</p>
-            <h2 className="text-xl font-semibold text-white">Images on disk</h2>
+            <p className="text-sm uppercase tracking-wide text-slate-400">1 · Emitter</p>
+            <h2 className="text-xl font-semibold text-white">Nordic PCA10059 Open DFU</h2>
+            <p className="mt-1 text-sm text-slate-400">
+              Sideways RESET (not white SW1). Red LED pulse → Install. Uses{" "}
+              <code className="text-slate-300">nrfutil device program</code> with{" "}
+              <code className="text-slate-300">recoil-dongle-dfu.zip</code>.
+            </p>
           </div>
           <button
             type="button"
@@ -269,41 +242,100 @@ export function RecoilFlashPage() {
             Refresh now
           </button>
         </div>
-        {images.length === 0 ? (
-          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-3 text-sm text-amber-100 space-y-2">
-            <p>No built UF2 files found yet.</p>
-            <p className="text-amber-100/80">From an nRF Connect toolchain shell:</p>
-            <pre className="overflow-x-auto rounded bg-slate-950/60 p-2 text-xs text-slate-200">
-{`cd recoil-link\\firmware
-.\\build.ps1 -NcsRoot C:\\ncs\\v2.9.0`}
-            </pre>
+
+        <div
+          className={`rounded-xl p-3 ring-1 ${
+            openDfuHints.length
+              ? "bg-emerald-500/10 ring-emerald-500/40"
+              : recoilTxHints.length
+                ? "bg-sky-500/10 ring-sky-500/40"
+                : "bg-slate-900/60 ring-white/5"
+          }`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-medium text-white">Status</p>
+            <span
+              className={`text-xs font-medium ${
+                openDfuHints.length
+                  ? "text-emerald-300"
+                  : recoilTxHints.length
+                    ? "text-sky-300"
+                    : "text-slate-400"
+              }`}
+            >
+              {openDfuHints.length
+                ? "Ready to flash"
+                : recoilTxHints.length
+                  ? "Already Recoil Link TX"
+                  : "Waiting"}
+            </span>
           </div>
-        ) : (
-          <ul className="space-y-2 text-sm">
-            {images.map((img) => (
-              <li
-                key={img.role}
-                className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg bg-slate-900/70 px-3 py-2 ring-1 ring-white/5"
-              >
-                <span className="font-medium text-slate-100">{roleLabel(img.role)}</span>
-                <span className="text-slate-400">{formatBytes(img.bytes)}</span>
-                <span className="w-full truncate font-mono text-xs text-slate-500">{img.path}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+          {openDfuHints.length > 0 ? (
+            <p className="mt-2 text-sm text-emerald-100">
+              Open DFU on {openDfuHints.map((h) => `${h.port} (${h.vidPid})`).join(", ")}
+            </p>
+          ) : recoilTxHints.length > 0 ? (
+            <p className="mt-2 text-sm text-sky-100">
+              Running on {recoilTxHints.map((h) => h.port).join(", ")}. To reflash: press RESET for
+              red DFU, then Install again.
+            </p>
+          ) : (
+            <p className="mt-2 text-sm text-slate-400">
+              No Open DFU COM port yet (expect VID_1915&PID_521F).
+            </p>
+          )}
+          {dongleAny ? (
+            <p className="mt-2 text-xs text-slate-500 truncate">
+              Package: {dongleAny.path} ({formatBytes(dongleAny.bytes)})
+            </p>
+          ) : (
+            <p className="mt-2 text-sm text-amber-200">No DFU zip found — run firmware build.ps1.</p>
+          )}
+        </div>
+
+        <button
+          type="button"
+          className="rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-medium text-slate-950 disabled:opacity-50"
+          disabled={!emitterReady}
+          onClick={() => void handleFlashEmitter()}
+        >
+          {busy ? "Installing…" : "Install emitter firmware (Open DFU)"}
+        </button>
       </section>
 
       <section className="rounded-2xl bg-slate-800/80 p-4 md:p-5 shadow-lg ring-1 ring-white/5 space-y-4">
         <div>
-          <p className="text-sm uppercase tracking-wide text-slate-400">Install</p>
-          <h2 className="text-xl font-semibold text-white">Flash selected board</h2>
+          <p className="text-sm uppercase tracking-wide text-slate-400">2 · Receiver</p>
+          <h2 className="text-xl font-semibold text-white">Nice!Nano UF2</h2>
+          <p className="mt-1 text-sm text-slate-400">
+            Short RST→GND twice. Wait for NICENANO, then install. One receiver only.
+          </p>
+        </div>
+
+        <div
+          className={`rounded-xl p-3 ring-1 ${
+            receiverBoot ? "bg-emerald-500/10 ring-emerald-500/40" : "bg-slate-900/60 ring-white/5"
+          }`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-medium text-white">UF2 volume</p>
+            <span
+              className={`text-xs font-medium ${
+                receiverBoot ? "text-emerald-300" : "text-slate-400"
+              }`}
+            >
+              {receiverBoot ? "Ready" : "Waiting"}
+            </span>
+          </div>
+          {receiverBoot ? (
+            <p className="mt-2 text-sm text-emerald-100">{driveLabel(receiverBoot)}</p>
+          ) : (
+            <p className="mt-2 text-sm text-slate-400">No NICENANO drive detected.</p>
+          )}
         </div>
 
         {targets.length === 0 ? (
-          <p className="text-sm text-slate-400">
-            Install stays disabled until a bootloader drive appears above.
-          </p>
+          <p className="text-sm text-slate-400">Install stays disabled until a UF2 volume appears.</p>
         ) : (
           <div className="space-y-3">
             <label className="block space-y-1.5">
@@ -335,16 +367,6 @@ export function RecoilFlashPage() {
                   <span className="text-slate-500">({selected.confidence})</span>
                 </p>
                 <p className="text-slate-400">{selected.reason}</p>
-                {selected.model && (
-                  <p>
-                    <span className="text-slate-500">Model:</span> {selected.model}
-                  </p>
-                )}
-                {selected.softDevice && (
-                  <p>
-                    <span className="text-slate-500">SoftDevice:</span> {selected.softDevice}
-                  </p>
-                )}
               </div>
             )}
 
@@ -352,14 +374,15 @@ export function RecoilFlashPage() {
               <span className="text-sm text-slate-400">Firmware to install</span>
               <select
                 className="w-full rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-white"
-                value={effectiveRole === "unknown" ? "" : effectiveRole}
+                value={
+                  effectiveRole === "unknown" || effectiveRole === "dongle" ? "" : effectiveRole
+                }
                 disabled={busy || !selected}
                 onChange={(e) =>
                   setRoleOverride((e.target.value || "") as RecoilFirmwareRole | "")
                 }
               >
                 <option value="">Select…</option>
-                <option value="dongle">{ROLE_LABEL.dongle}</option>
                 <option value="receiver">{ROLE_LABEL.receiver}</option>
                 <option value="receiver_nosd">{ROLE_LABEL.receiver_nosd}</option>
               </select>
@@ -368,12 +391,32 @@ export function RecoilFlashPage() {
             <button
               type="button"
               className="rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-medium text-slate-950 disabled:opacity-50"
-              disabled={!canInstall}
-              onClick={() => void handleFlash()}
+              disabled={!receiverReady}
+              onClick={() => void handleFlashReceiver()}
             >
-              {busy ? "Installing…" : "Install firmware on this board"}
+              {busy ? "Installing…" : "Install receiver firmware (UF2)"}
             </button>
           </div>
+        )}
+      </section>
+
+      <section className="rounded-2xl bg-slate-800/80 p-4 md:p-5 shadow-lg ring-1 ring-white/5 space-y-2">
+        <h2 className="text-lg font-semibold text-white">Images on disk</h2>
+        {images.length === 0 ? (
+          <p className="text-sm text-amber-200">No firmware files found under dist/.</p>
+        ) : (
+          <ul className="space-y-2 text-sm">
+            {images.map((img) => (
+              <li
+                key={`${img.role}-${img.path}`}
+                className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg bg-slate-900/70 px-3 py-2 ring-1 ring-white/5"
+              >
+                <span className="font-medium text-slate-100">{roleLabel(img.role)}</span>
+                <span className="text-slate-400">{formatBytes(img.bytes)}</span>
+                <span className="w-full truncate font-mono text-xs text-slate-500">{img.path}</span>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 

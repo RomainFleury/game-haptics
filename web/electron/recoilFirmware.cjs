@@ -1,10 +1,9 @@
 /**
- * Recoil Link UF2 firmware discovery and flash helpers (Electron main).
+ * Recoil Link firmware discovery and flash helpers (Electron main).
  *
- * Both the Micro Dev dongle and Nice!Nano-style receivers use Adafruit-style
- * UF2 bootloaders: enter DFU, mount a mass-storage volume, copy a .uf2 file.
- * The board still has to be put into bootloader mode by the user (button /
- * double-tap reset). This module only detects the volume and writes the image.
+ * Emitter (PCA10059): Nordic Open DFU — red LED + COM, no UF2 disk; flashOpenDfu.
+ * Receiver (Nice!Nano): Adafruit-style UF2 volume — short RST→GND twice, copy .uf2.
+ * User still enters bootloader; this module detects and programs.
  */
 
 const fs = require("fs");
@@ -89,9 +88,8 @@ function listFirmwareImages() {
 }
 
 /**
- * Probe Windows for Nordic/Adafruit CDC that often means a Micro Dev is plugged
- * even when the UF2 mass-storage volume did not mount.
- * @returns {Promise<{ port: string, description: string, vidPid: string }[]>}
+ * Probe Windows serial for PCA10059 Open DFU and Recoil Link TX CDC.
+ * @returns {Promise<{ port: string, description: string, vidPid: string, mode: "open_dfu" | "recoil_tx" | "other" }[]>}
  */
 async function listEmitterSerialHints() {
   if (process.platform !== "win32") return [];
@@ -106,8 +104,12 @@ async function listEmitterSerialHints() {
           "$hints = @()",
           "foreach ($p in $ports) {",
           "  $id = [string]$p.PNPDeviceID",
-          "  if ($id -match 'VID_1915&PID_521F' -or $id -match 'VID_239A') {",
-          "    $hints += [pscustomobject]@{ port = $p.DeviceID; description = $p.Description; vidPid = $Matches[0] }",
+          "  $mode = $null; $vid = $null",
+          "  if ($id -match 'VID_1915&PID_521F') { $mode = 'open_dfu'; $vid = $Matches[0] }",
+          "  elseif ($id -match 'VID_2FE3&PID_0004') { $mode = 'recoil_tx'; $vid = $Matches[0] }",
+          "  elseif ($id -match 'VID_239A') { $mode = 'other'; $vid = $Matches[0] }",
+          "  if ($mode) {",
+          "    $hints += [pscustomobject]@{ port = $p.DeviceID; description = $p.Description; vidPid = $vid; mode = $mode }",
           "  }",
           "}",
           "$hints | ConvertTo-Json -Compress",
@@ -125,9 +127,94 @@ async function listEmitterSerialHints() {
         port: String(h.port),
         description: String(h.description || ""),
         vidPid: String(h.vidPid || ""),
+        mode: /** @type {"open_dfu"|"recoil_tx"|"other"} */ (
+          h.mode === "open_dfu" || h.mode === "recoil_tx" ? h.mode : "other"
+        ),
       }));
   } catch {
     return [];
+  }
+}
+
+function findNrfutilExe() {
+  const home = process.env.USERPROFILE || process.env.HOME || "";
+  const candidates = [
+    path.join(home, ".nrfutil", "bin", "nrfutil.exe"),
+    "nrfutil",
+  ];
+  for (const c of candidates) {
+    if (c === "nrfutil") return c;
+    if (fs.existsSync(c)) return c;
+  }
+  return null;
+}
+
+/**
+ * Resolve recoil-dongle-dfu.zip (or .hex) for Open DFU flash.
+ */
+function resolveDongleDfuPackage() {
+  const images = listFirmwareImages().filter((img) => img.role === "dongle");
+  const zip = images.find((img) => /\.zip$/i.test(img.path));
+  if (zip) return zip;
+  const hex = images.find((img) => /\.hex$/i.test(img.path));
+  return hex || images[0] || null;
+}
+
+/**
+ * Flash PCA10059 via Nordic Open DFU (nrfutil device program --traits nordicDfu).
+ * Same path verified on this lab bench.
+ * @param {{ imagePath?: string }} [opts]
+ */
+async function flashOpenDfu(opts = {}) {
+  const pkg = opts.imagePath
+    ? { path: opts.imagePath, role: "dongle" }
+    : resolveDongleDfuPackage();
+  if (!pkg || !pkg.path || !fs.existsSync(pkg.path)) {
+    return {
+      success: false,
+      error:
+        "Missing recoil-dongle-dfu.zip. Run recoil-link/firmware/build.ps1 and keep dist/ next to the app.",
+    };
+  }
+  if (!/\.(zip|hex)$/i.test(pkg.path)) {
+    return {
+      success: false,
+      error: `Emitter needs a DFU .zip (or .hex), not ${path.basename(pkg.path)}.`,
+    };
+  }
+
+  const nrfutil = findNrfutilExe();
+  if (!nrfutil) {
+    return {
+      success: false,
+      error: "nrfutil not found. Install Nordic nrfutil and: nrfutil install device",
+    };
+  }
+
+  try {
+    const { stdout, stderr } = await execFileAsync(
+      nrfutil,
+      ["device", "program", "--firmware", pkg.path, "--traits", "nordicDfu"],
+      { windowsHide: true, timeout: 120000, maxBuffer: 4 * 1024 * 1024 }
+    );
+    const out = `${stdout || ""}\n${stderr || ""}`.trim();
+    return {
+      success: true,
+      role: "dongle",
+      imagePath: pkg.path,
+      message:
+        "Emitter flash complete. Board should re-enumerate as Recoil Link TX (new COM port). " +
+        "Ping needs a powered receiver — TIMEOUT without RX is normal. " +
+        (out ? out.slice(0, 400) : ""),
+    };
+  } catch (err) {
+    const detail = [err.stdout, err.stderr, err.message].filter(Boolean).join("\n");
+    return {
+      success: false,
+      error:
+        "Open DFU flash failed. Put the PCA10059 in DFU (sideways RESET, red LED pulse), then retry. " +
+        detail.slice(0, 800),
+    };
   }
 }
 
@@ -385,6 +472,8 @@ module.exports = {
   listFirmwareImages,
   listUf2Targets,
   listEmitterSerialHints,
+  resolveDongleDfuPackage,
+  flashOpenDfu,
   firmwareSearchRoots,
   repoRoot,
   flashUf2,

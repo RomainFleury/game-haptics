@@ -212,9 +212,12 @@ contextBridge.exposeInMainWorld("vestBridge", {
   recoilDisconnect: () => ipcRenderer.invoke("recoil:disconnect"),
   recoilStatus: () => ipcRenderer.invoke("recoil:status"),
   recoilPulse: (durationMs) => ipcRenderer.invoke("recoil:pulse", durationMs),
+  recoilSet: (on) => ipcRenderer.invoke("recoil:set", on),
 
-  // Recoil Link UF2 install
+  // Recoil Link firmware install (Open DFU emitter + UF2 receiver)
   recoilFirmwareListImages: () => ipcRenderer.invoke("recoilFirmware:listImages"),
   recoilFirmwareListTargets: () => ipcRenderer.invoke("recoilFirmware:listTargets"),
   recoilFirmwareFlash: (payload) => ipcRenderer.invoke("recoilFirmware:flash", payload),
+  recoilFirmwareFlashEmitter: (payload) =>
+    ipcRenderer.invoke("recoilFirmware:flashEmitter", payload || {}),
 });

@@ -53,12 +53,24 @@ set SRC_DIR=%CD%\..\src
 
 
 :: Include libusb DLL in the bundle (extracted to same dir as exe at runtime)
-%PYTHON_CMD% -m PyInstaller --onefile --name vest-daemon --console --clean --paths "%SRC_DIR%" --add-binary "%LIBUSB_DLL%;." --hidden-import modern_third_space.vest --hidden-import modern_third_space.vest.controller --hidden-import modern_third_space.vest.status --hidden-import modern_third_space.vest.discovery --hidden-import modern_third_space.presets --hidden-import modern_third_space.server --hidden-import modern_third_space.server.daemon --hidden-import modern_third_space.server.protocol --hidden-import modern_third_space.server.client_manager --hidden-import modern_third_space.server.lifecycle --hidden-import modern_third_space.server.cs2_manager --hidden-import modern_third_space.server.alyx_manager --hidden-import modern_third_space.server.l4d2_manager --hidden-import modern_third_space.server.pistolwhip_manager --hidden-import modern_third_space.server.battlesister_manager --hidden-import modern_third_space.server.gunmancontracts_manager --hidden-import modern_third_space.server.screen_health_manager --hidden-import modern_third_space.relay --hidden-import modern_third_space.relay.controller --hidden-import modern_third_space.relay.mouse_recoil --hidden-import modern_third_space.legacy_adapter --hidden-import bettercam vest-daemon-entry.py
+%PYTHON_CMD% -m PyInstaller --onefile --name vest-daemon --console --clean --paths "%SRC_DIR%" --add-binary "%LIBUSB_DLL%;." --hidden-import modern_third_space.vest --hidden-import modern_third_space.vest.controller --hidden-import modern_third_space.vest.status --hidden-import modern_third_space.vest.discovery --hidden-import modern_third_space.presets --hidden-import modern_third_space.server --hidden-import modern_third_space.server.daemon --hidden-import modern_third_space.server.protocol --hidden-import modern_third_space.server.client_manager --hidden-import modern_third_space.server.lifecycle --hidden-import modern_third_space.server.cs2_manager --hidden-import modern_third_space.server.alyx_manager --hidden-import modern_third_space.server.l4d2_manager --hidden-import modern_third_space.server.pistolwhip_manager --hidden-import modern_third_space.server.battlesister_manager --hidden-import modern_third_space.server.gunmancontracts_manager --hidden-import modern_third_space.server.titanfall2_manager --hidden-import modern_third_space.server.screen_health_manager --hidden-import modern_third_space.relay --hidden-import modern_third_space.relay.controller --hidden-import modern_third_space.relay.mouse_recoil --hidden-import modern_third_space.recoil_link --hidden-import modern_third_space.recoil_link.link --hidden-import modern_third_space.recoil_link.protocol --hidden-import modern_third_space.legacy_adapter --hidden-import bettercam vest-daemon-entry.py
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] Failed to build daemon!
     exit /b 1
 )
 cd ..\..
+echo.
+
+:: Step 2b: Build ALL bundled game mods into mods\ (required for Electron package)
+echo [2b/5] Building release mods (Titanfall 2 + MelonLoader mods + L4D2 check)...
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0..\scripts\prepare-release-mods.ps1"
+if %ERRORLEVEL% neq 0 (
+    echo [ERROR] Release mods prepare failed.
+    echo   Titanfall 2 needs VS 2022 C++ Build Tools.
+    echo   Melon mods need each game installed with MelonLoader 0.6+ ^(net6^).
+    exit /b 1
+)
+echo [OK] All bundled mods ready for packaging
 echo.
 
 :: Step 3: Install Node dependencies

@@ -4,6 +4,7 @@
  * 
  * This script orchestrates the full build process for Third Space Vest:
  * 1. Build the Python daemon with PyInstaller (vest-daemon.exe)
+ * 1b. Build ALL bundled mods via scripts/prepare-release-mods.ps1 (required)
  * 2. Build the React app with Vite
  * 3. Package everything with electron-builder
  * 
@@ -12,6 +13,7 @@
  * 
  * Options:
  *   --skip-daemon    Skip building the daemon (use existing)
+ *   --skip-mods      Skip mod rebuilds but still require existing DLLs under mods/
  *   --skip-renderer  Skip building the renderer (use existing)
  *   --dir            Build unpacked directory (faster, for testing)
  * 
@@ -97,6 +99,40 @@ function runCommand(command, args, options = {}) {
 }
 
 /**
+ * Build and verify every mod that must ship in resources/mods/.
+ * Delegates to scripts/prepare-release-mods.ps1 (fail the release on any miss).
+ */
+async function prepareBundledMods() {
+  logStep("1b", "Preparing bundled game mods (required)");
+
+  const prepScript = resolve(PROJECT_ROOT, "scripts", "prepare-release-mods.ps1");
+  if (!existsSync(prepScript)) {
+    throw new Error(`Missing ${prepScript}`);
+  }
+
+  await runCommand(
+    "powershell.exe",
+    ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", prepScript],
+    { cwd: PROJECT_ROOT }
+  );
+
+  const required = [
+    "mods/titanfall2/ThirdSpace_Titanfall2.dll",
+    "mods/titanfall2/ThirdSpace_Titanfall2/mod.json",
+    "mods/pistolwhip/ThirdSpace_PistolWhip.dll",
+    "mods/battlesister/ThirdSpace_BattleSister.dll",
+    "mods/gunmancontracts/ThirdSpace_GunmanContracts.dll",
+  ];
+  for (const rel of required) {
+    const full = resolve(PROJECT_ROOT, rel);
+    if (!existsSync(full)) {
+      throw new Error(`Required mod artifact missing after prepare: ${rel}`);
+    }
+    logSuccess(rel);
+  }
+}
+
+/**
  * Build the Python daemon with PyInstaller.
  */
 async function buildDaemon() {
@@ -170,6 +206,7 @@ async function packageElectron(dirOnly = false) {
 async function main() {
   const args = process.argv.slice(2);
   const skipDaemon = args.includes("--skip-daemon");
+  const skipMods = args.includes("--skip-mods");
   const skipRenderer = args.includes("--skip-renderer");
   const dirOnly = args.includes("--dir");
   
@@ -182,6 +219,7 @@ async function main() {
   log(`Platform: ${process.platform}`, colors.cyan);
   log(`Project Root: ${PROJECT_ROOT}`, colors.cyan);
   log(`Skip Daemon: ${skipDaemon}`, colors.cyan);
+  log(`Skip Mods: ${skipMods}`, colors.cyan);
   log(`Skip Renderer: ${skipRenderer}`, colors.cyan);
   log(`Directory Only: ${dirOnly}`, colors.cyan);
   
@@ -191,6 +229,28 @@ async function main() {
       await buildDaemon();
     } else {
       logWarning("Skipping daemon build (--skip-daemon)");
+    }
+
+    // Step 1b: Titanfall 2 (+ verify other mod DLLs)
+    if (!skipMods) {
+      await prepareBundledMods();
+    } else {
+      logWarning("Skipping mod rebuilds (--skip-mods); verifying existing artifacts…");
+      const required = [
+        "mods/titanfall2/ThirdSpace_Titanfall2.dll",
+        "mods/titanfall2/ThirdSpace_Titanfall2/mod.json",
+        "mods/pistolwhip/ThirdSpace_PistolWhip.dll",
+        "mods/battlesister/ThirdSpace_BattleSister.dll",
+        "mods/gunmancontracts/ThirdSpace_GunmanContracts.dll",
+      ];
+      for (const rel of required) {
+        if (!existsSync(resolve(PROJECT_ROOT, rel))) {
+          throw new Error(
+            `${rel} missing. Run scripts/prepare-release-mods.ps1 or omit --skip-mods.`
+          );
+        }
+        logSuccess(rel);
+      }
     }
     
     // Step 2: Build renderer

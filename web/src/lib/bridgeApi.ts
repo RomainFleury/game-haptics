@@ -200,6 +200,8 @@ export type RelayPortInfo = {
   pid?: number | null;
   likely_relay?: boolean;
   likely_recoil?: boolean;
+  /** Friendly label from daemon (e.g. "Recoil Link TX") */
+  display_name?: string | null;
 };
 
 export type RelayStatusInfo = {
@@ -253,6 +255,8 @@ export type RecoilSerialHint = {
   port: string;
   description: string;
   vidPid: string;
+  /** open_dfu = PCA10059 red-pulse bootloader; recoil_tx = flashed Recoil Link TX */
+  mode?: "open_dfu" | "recoil_tx" | "other";
 };
 
 export type RecoilFirmwareTargetsResult = {
@@ -951,11 +955,15 @@ declare global {
       recoilDisconnect: () => Promise<{ success: boolean; error?: string }>;
       recoilStatus: () => Promise<{ success: boolean; connected: boolean; recoil?: RecoilLinkStatus | null; error?: string }>;
       recoilPulse: (durationMs?: number) => Promise<{ success: boolean; duration_ms?: number; recoil?: RecoilLinkStatus; error?: string }>;
+      recoilSet: (on: boolean) => Promise<{ success: boolean; on?: boolean; recoil?: RecoilLinkStatus; error?: string }>;
       recoilFirmwareListImages: () => Promise<RecoilFirmwareImagesResult>;
       recoilFirmwareListTargets: () => Promise<RecoilFirmwareTargetsResult>;
       recoilFirmwareFlash: (payload: {
-        targetPath: string;
+        targetPath?: string;
         role: RecoilFirmwareRole;
+        imagePath?: string;
+      }) => Promise<RecoilFirmwareFlashResult>;
+      recoilFirmwareFlashEmitter: (payload?: {
         imagePath?: string;
       }) => Promise<RecoilFirmwareFlashResult>;
     };
@@ -1745,6 +1753,12 @@ export async function recoilPulse(
   return await ensureBridge().recoilPulse(durationMs);
 }
 
+export async function recoilSet(
+  on: boolean
+): Promise<{ success: boolean; on?: boolean; recoil?: RecoilLinkStatus; error?: string }> {
+  return await ensureBridge().recoilSet(on);
+}
+
 export async function recoilFirmwareListImages(): Promise<RecoilFirmwareImagesResult> {
   return await ensureBridge().recoilFirmwareListImages();
 }
@@ -1754,11 +1768,17 @@ export async function recoilFirmwareListTargets(): Promise<RecoilFirmwareTargets
 }
 
 export async function recoilFirmwareFlash(payload: {
-  targetPath: string;
+  targetPath?: string;
   role: RecoilFirmwareRole;
   imagePath?: string;
 }): Promise<RecoilFirmwareFlashResult> {
   return await ensureBridge().recoilFirmwareFlash(payload);
+}
+
+export async function recoilFirmwareFlashEmitter(payload: {
+  imagePath?: string;
+} = {}): Promise<RecoilFirmwareFlashResult> {
+  return await ensureBridge().recoilFirmwareFlashEmitter(payload);
 }
 
 export async function relayMouseStart(

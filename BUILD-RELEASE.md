@@ -171,8 +171,26 @@ Game mods are bundled with the app in `resources/mods/`:
 |------|-------|----------------|
 | Left 4 Dead 2 | `*.nut` VScripts | Click "Install Mod" in UI |
 | Half-Life: Alyx | Link to NexusMods | External download |
+| Pistol Whip / Battle Sister / Gunman | MelonLoader `*.dll` in `mods/<game>/` | **Install Mod** in UI (DLLs must exist under `mods/` at package time) |
+| **Titanfall 2** | `ThirdSpace_Titanfall2.dll` + Northstar mod folder | Built by `titanfall2-mod/build.ps1` during release; **Install Mod** copies into TF2VR / R2Northstar |
 
-**Note:** Other mods (SUPERHOT VR, GTA V, Pistol Whip) have been moved to `misc-documentations/archived-untested-mods/` as they are untested.
+**Release requirement:** `windows/build-release.bat` and `web/scripts/build-release.mjs` run `scripts/prepare-release-mods.ps1`, which **rebuilds and verifies** every bundled mod and **fails the release** if any artifact is missing:
+
+| Artifact | Built by | Needs on build machine |
+|----------|----------|------------------------|
+| `mods/titanfall2/ThirdSpace_Titanfall2.dll` (+ Northstar mod folder) | `titanfall2-mod/build.ps1` | VS 2022 C++ Build Tools |
+| `mods/pistolwhip/ThirdSpace_PistolWhip.dll` | `pistolwhip-mod/build.ps1` | .NET SDK + Pistol Whip with MelonLoader net6 |
+| `mods/battlesister/ThirdSpace_BattleSister.dll` | `battlesister-mod/build.ps1` | .NET SDK + Battle Sister with MelonLoader net6 |
+| `mods/gunmancontracts/ThirdSpace_GunmanContracts.dll` | `gunmancontracts-mod/build.ps1` | .NET SDK + Gunman Contracts with MelonLoader net6 |
+| L4D2 `*.nut` sources | checked in-repo | present under misc-documentations path |
+
+DLLs under `mods/` stay gitignored; they are produced at release time and copied into the installer by electron-builder.
+
+Manual check:
+
+```powershell
+.\scripts\prepare-release-mods.ps1
+```
 
 ## Distribution
 

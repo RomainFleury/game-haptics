@@ -10,7 +10,7 @@ A lost packet can delay the start of a kick. It cannot stretch the kick, and it 
 
 **Product intent:** a ready-to-make kit. Lab boards today are Nordic **PCA10059** + buttonless Nice!Nano-style RX. Production is custom (or OEM) TX/RX PCBs with the same protocol and host software.
 
-**UI:** Electron **Kit Setup** (`#/recoil-link`) for connect/pulse and receiver UF2. Emitter flash is Open DFU via `firmware/flash-emitter.ps1` (no UF2 disk). Wired USB LC relay stays on **Recoil**.
+**UI:** **Recoil** (`#/recoil`) connects LC relay or Recoil Link TX for pulse/click. **Kit Setup** (`#/recoil-link`) watches USB/UF2, flashes firmware, and lists parts. CLI: `firmware/flash-emitter.ps1`.
 
 ```
 PC USB CDC  →  nRF52840 dongle (PTX)

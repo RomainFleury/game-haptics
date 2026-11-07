@@ -66,6 +66,13 @@ const MOD_CONFIG = {
     targetFolder: "Mods",
     description: "MelonLoader TCP client for Gunman Contracts haptic feedback",
   },
+  "titanfall2": {
+    name: "Titanfall 2",
+    directory: "titanfall2",
+    files: ["ThirdSpace_Titanfall2.dll", "ThirdSpace_Titanfall2/mod.json"],
+    targetFolder: "plugins + mods (Northstar)",
+    description: "Northstar / TF2VR plugin + mod package for Titanfall 2 haptic feedback",
+  },
 };
 
 function registerModsHandlers(getMainWindow) {

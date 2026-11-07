@@ -18,22 +18,41 @@ const titanfall2Storage = require("../titanfall2Storage.cjs");
 const PLUGIN_DLL = "ThirdSpace_Titanfall2.dll";
 const MOD_FOLDER = "ThirdSpace_Titanfall2";
 const KNOWN_PROFILES = ["TF2VR", "R2Northstar"];
+const IS_PACKAGED = !process.env.VITE_DEV_SERVER_URL;
 
 function repoRoot() {
   return path.resolve(__dirname, "..", "..", "..");
 }
 
-function getBuiltDllPath() {
+/**
+ * Directory that contains the plugin DLL (+ optional bundled Northstar mod folder).
+ * Packaged app: resources/mods/titanfall2/
+ * Dev: mods/titanfall2/ or titanfall2-mod/bin/...
+ */
+function getModBundleDir() {
+  if (IS_PACKAGED && process.resourcesPath) {
+    const bundled = path.join(process.resourcesPath, "mods", "titanfall2");
+    if (fs.existsSync(path.join(bundled, PLUGIN_DLL))) {
+      return bundled;
+    }
+    console.warn(`[titanfall2] Bundled ${PLUGIN_DLL} not found at: ${bundled}`);
+  }
   const root = repoRoot();
   const candidates = [
-    path.join(root, "titanfall2-mod", "bin", "x64", "Release", PLUGIN_DLL),
-    path.join(root, "titanfall2-mod", "bin", "x64", "Debug", PLUGIN_DLL),
-    path.join(root, "mods", "titanfall2", PLUGIN_DLL),
+    path.join(root, "mods", "titanfall2"),
+    path.join(root, "titanfall2-mod", "bin", "x64", "Release"),
+    path.join(root, "titanfall2-mod", "bin", "x64", "Debug"),
   ];
-  for (const file of candidates) {
-    if (fs.existsSync(file)) return file;
+  for (const dir of candidates) {
+    if (fs.existsSync(path.join(dir, PLUGIN_DLL))) return dir;
   }
-  return null;
+  return path.join(root, "mods", "titanfall2");
+}
+
+function getBuiltDllPath() {
+  const dir = getModBundleDir();
+  const file = path.join(dir, PLUGIN_DLL);
+  return fs.existsSync(file) ? file : null;
 }
 
 /** Build via titanfall2-mod/build.ps1 (needs VS 2022 C++ / Build Tools). */
@@ -68,6 +87,10 @@ function tryBuildPlugin() {
 }
 
 function getModSourceDir() {
+  const bundled = path.join(getModBundleDir(), MOD_FOLDER);
+  if (fs.existsSync(path.join(bundled, "mod.json"))) {
+    return bundled;
+  }
   const dir = path.join(repoRoot(), "titanfall2-mod", "ThirdSpace_Titanfall2", "mod", MOD_FOLDER);
   return fs.existsSync(path.join(dir, "mod.json")) ? dir : null;
 }

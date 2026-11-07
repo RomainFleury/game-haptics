@@ -31,6 +31,10 @@ logger = logging.getLogger(__name__)
 
 Opener = Callable[[str], Any]
 
+# Matches recoil-link/firmware/tx/prj.conf USB descriptors
+RECOIL_USB_VID = 0x2FE3
+RECOIL_USB_PID = 0x0004
+
 
 def _port_blob(port: Dict[str, Any]) -> str:
     return " ".join(
@@ -39,12 +43,35 @@ def _port_blob(port: Dict[str, Any]) -> str:
     ).lower()
 
 
-def list_recoil_ports() -> List[Dict[str, Any]]:
-    """Serial ports, with likely_recoil set on the Recoil Link dongle."""
-    ports = list_ports()
+def _is_recoil_dongle(port: Dict[str, Any]) -> bool:
+    """True for flashed Recoil Link TX (product string and/or our USB IDs)."""
+    vid = port.get("vid")
+    pid = port.get("pid")
+    if vid == RECOIL_USB_VID and pid == RECOIL_USB_PID:
+        return True
+    blob = _port_blob(port)
     needle = PRODUCT_NAME.lower()
+    return (
+        needle in blob
+        or "recoil link" in blob
+        or "vid:2fe3" in blob
+        or "vid_2fe3" in blob
+    )
+
+
+def list_recoil_ports() -> List[Dict[str, Any]]:
+    """Serial ports, with likely_recoil + display_name for the Recoil Link dongle."""
+    ports = list_ports()
     for port in ports:
-        port["likely_recoil"] = needle in _port_blob(port)
+        is_recoil = _is_recoil_dongle(port)
+        port["likely_recoil"] = is_recoil
+        # Friendly label for UI (Windows often still says "USB Serial Device")
+        if is_recoil:
+            product = (port.get("product") or "").strip()
+            port["display_name"] = product if product else PRODUCT_NAME
+        else:
+            desc = (port.get("description") or "").strip()
+            port["display_name"] = desc or port.get("device") or "Serial port"
     ports.sort(key=lambda port: (0 if port.get("likely_recoil") else 1, port.get("device") or ""))
     return ports
 
