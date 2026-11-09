@@ -200,7 +200,7 @@ export type RelayPortInfo = {
   pid?: number | null;
   likely_relay?: boolean;
   likely_recoil?: boolean;
-  /** Friendly label from daemon (e.g. "Recoil Link TX") */
+  /** Friendly label from daemon (e.g. "TSC Recoil Link") */
   display_name?: string | null;
 };
 
@@ -255,7 +255,7 @@ export type RecoilSerialHint = {
   port: string;
   description: string;
   vidPid: string;
-  /** open_dfu = PCA10059 red-pulse bootloader; recoil_tx = flashed Recoil Link TX */
+  /** open_dfu = PCA10059 red-pulse bootloader; recoil_tx = flashed TSC Recoil Link */
   mode?: "open_dfu" | "recoil_tx" | "other";
 };
 

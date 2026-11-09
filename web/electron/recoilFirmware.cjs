@@ -88,7 +88,7 @@ function listFirmwareImages() {
 }
 
 /**
- * Probe Windows serial for PCA10059 Open DFU and Recoil Link TX CDC.
+ * Probe Windows serial for PCA10059 Open DFU and TSC Recoil Link CDC.
  * @returns {Promise<{ port: string, description: string, vidPid: string, mode: "open_dfu" | "recoil_tx" | "other" }[]>}
  */
 async function listEmitterSerialHints() {
@@ -203,7 +203,7 @@ async function flashOpenDfu(opts = {}) {
       role: "dongle",
       imagePath: pkg.path,
       message:
-        "Emitter flash complete. Board should re-enumerate as Recoil Link TX (new COM port). " +
+        "Emitter flash complete. Board should re-enumerate as TSC Recoil Link (new COM port). " +
         "Ping needs a powered receiver — TIMEOUT without RX is normal. " +
         (out ? out.slice(0, 400) : ""),
     };
@@ -236,6 +236,135 @@ function parseInfoUf2(text) {
 }
 
 /**
+ * @param {string | null | undefined} soft
+ * @returns {boolean}
+ */
+function softDevicePresent(soft) {
+  const s = String(soft || "").trim();
+  return Boolean(s) && !/^(none|not found|n\/a|-)$/i.test(s);
+}
+
+/**
+ * Read the first UF2 block's target flash address.
+ * @param {string} uf2Path
+ * @returns {number}
+ */
+function readUf2StartAddress(uf2Path) {
+  return readUf2Vectors(uf2Path).load;
+}
+
+function readUf2Vectors(uf2Path) {
+  const fd = fs.openSync(uf2Path, "r");
+  try {
+    const buf = Buffer.alloc(40);
+    const n = fs.readSync(fd, buf, 0, 40, 0);
+    if (n < 40 || buf[0] !== 0x55 || buf[1] !== 0x46 || buf[2] !== 0x32) {
+      throw new Error(`Not a UF2 file: ${uf2Path}`);
+    }
+    return {
+      load: buf.readUInt32LE(12),
+      sp: buf.readUInt32LE(32),
+      reset: buf.readUInt32LE(36),
+    };
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+/**
+ * Reject images whose file address and reset vector disagree.
+ * That mismatch hardfaults inside the SoftDevice and never reaches main.
+ * @param {FirmwareRole} role
+ * @param {{ load: number, sp: number, reset: number }} v
+ * @returns {string | null}
+ */
+function recoilVectorError(role, v) {
+  const reset = v.reset & 0xfffffffe;
+  const appEnd = 0xf4000;
+  const ramEnd = 0x20040000;
+  if ((v.reset & 1) === 0) {
+    return `Reset 0x${v.reset.toString(16)} is not a Thumb vector. Rebuild.`;
+  }
+  if (role === "receiver") {
+    if (v.load !== 0x26000) {
+      return `SoftDevice-slot UF2 must load at 0x26000 (got 0x${v.load.toString(16)}).`;
+    }
+    if (reset < 0x26000 || reset >= appEnd) {
+      return (
+        `Reset 0x${v.reset.toString(16)} is outside 0x26000..0xF3FFF. ` +
+        `The image was linked at 0 and only stored at 0x26000. Rebuild.`
+      );
+    }
+    if (v.sp < 0x20004000 || v.sp > ramEnd) {
+      return `Stack 0x${v.sp.toString(16)} overlaps SoftDevice RAM. Rebuild.`;
+    }
+  }
+  if (role === "receiver_nosd") {
+    if (v.load !== 0x1000) {
+      return `nosd UF2 must load at 0x1000 (got 0x${v.load.toString(16)}).`;
+    }
+    if (reset < 0x1000 || reset >= appEnd) {
+      return `Reset 0x${v.reset.toString(16)} is outside 0x1000..0xF3FFF. Rebuild.`;
+    }
+    if (v.sp < 0x20000000 || v.sp > ramEnd) {
+      return `Stack 0x${v.sp.toString(16)} is outside SRAM. Rebuild.`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Adafruit bootloader: SoftDevice present → writes below 0x26000 are skipped.
+ * SoftDevice absent → app must load at 0x1000.
+ *
+ * @param {FirmwareRole} role
+ * @param {Record<string, string>} fields
+ * @param {string} imagePath
+ * @returns {{ ok: true } | { ok: false, error: string }}
+ */
+function assertReceiverUf2Compatible(role, fields, imagePath) {
+  if (role !== "receiver" && role !== "receiver_nosd") {
+    return { ok: true };
+  }
+  const soft = fields.SoftDevice || fields.Softdevice || "";
+  const hasSd = softDevicePresent(soft);
+  let vectors;
+  try {
+    vectors = readUf2Vectors(imagePath);
+  } catch (err) {
+    return { ok: false, error: err.message || String(err) };
+  }
+  const vectorError = recoilVectorError(role, vectors);
+  if (vectorError) {
+    return { ok: false, error: vectorError };
+  }
+
+  // SoftDevice present → slot image @ 0x26000 (disables S140, then ESB).
+  // SoftDevice absent → nosd @ 0x1000. Adafruit skips writes below 0x26000
+  // while a SoftDevice is installed, so the other combination is a no-op.
+  if (role === "receiver" && !hasSd) {
+    return {
+      ok: false,
+      error:
+        `SoftDevice: not found. Flash recoil-receiver-nosd.uf2 (role receiver_nosd) at 0x1000. ` +
+        `A SoftDevice-slot image at 0x26000 will not boot without S140.`,
+    };
+  }
+  if (role === "receiver_nosd" && hasSd) {
+    return {
+      ok: false,
+      error:
+        `Refusing nosd flash: SoftDevice is installed (${soft}). ` +
+        `Adafruit skips writes below 0x26000, so recoil-receiver-nosd.uf2 would not replace the app. ` +
+        `Flash role "receiver" (recoil-receiver.uf2 @ 0x26000). It disables SoftDevice at boot, then starts ESB. ` +
+        `Save CircuitPython first with flash-receiver.ps1 -Drive X: -Save if you want it back.`,
+    };
+  }
+
+  return { ok: true };
+}
+
+/**
  * @param {Record<string, string>} fields
  * @param {string} volumeLabel
  * @returns {{ role: FirmwareRole, confidence: "high" | "medium" | "low", reason: string }}
@@ -253,17 +382,17 @@ function classifyBoard(fields, volumeLabel) {
     model.includes("nice!nano") ||
     model.includes("nice nano")
   ) {
-    if (soft && !/^none$/i.test(soft)) {
+    if (softDevicePresent(soft)) {
       return {
         role: "receiver",
         confidence: "high",
-        reason: `Nice!Nano with SoftDevice (${soft}) → recoil_receiver @ 0x26000`,
+        reason: `Nice!Nano with SoftDevice (${soft}) → recoil-receiver.uf2 @ 0x26000 (disables SoftDevice, then ESB)`,
       };
     }
     return {
       role: "receiver_nosd",
       confidence: "high",
-      reason: "Nice!Nano without SoftDevice → recoil_receiver_nosd @ 0x1000",
+      reason: "Nice!Nano without SoftDevice → recoil-receiver-nosd.uf2 @ 0x1000",
     };
   }
 
@@ -430,6 +559,14 @@ async function flashUf2(opts) {
     };
   }
 
+  const infoPath = path.join(targetRoot, "INFO_UF2.TXT");
+  const infoText = fs.readFileSync(infoPath, "utf8");
+  const fields = parseInfoUf2(infoText);
+  const compatible = assertReceiverUf2Compatible(role, fields, imagePath);
+  if (!compatible.ok) {
+    return { success: false, error: compatible.error };
+  }
+
   const destName = IMAGE_FILES[role] || "firmware.uf2";
   const destPath = path.join(targetRoot, destName);
 
@@ -479,4 +616,7 @@ module.exports = {
   flashUf2,
   parseInfoUf2,
   classifyBoard,
+  softDevicePresent,
+  readUf2StartAddress,
+  assertReceiverUf2Compatible,
 };

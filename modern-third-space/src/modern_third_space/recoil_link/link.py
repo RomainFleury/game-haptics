@@ -44,7 +44,7 @@ def _port_blob(port: Dict[str, Any]) -> str:
 
 
 def _is_recoil_dongle(port: Dict[str, Any]) -> bool:
-    """True for flashed Recoil Link TX (product string and/or our USB IDs)."""
+    """True for flashed TSC Recoil Link (product string and/or our USB IDs)."""
     vid = port.get("vid")
     pid = port.get("pid")
     if vid == RECOIL_USB_VID and pid == RECOIL_USB_PID:
@@ -67,8 +67,8 @@ def list_recoil_ports() -> List[Dict[str, Any]]:
         port["likely_recoil"] = is_recoil
         # Friendly label for UI (Windows often still says "USB Serial Device")
         if is_recoil:
-            product = (port.get("product") or "").strip()
-            port["display_name"] = product if product else PRODUCT_NAME
+            # Prefer our brand label; Windows often only shows "USB Serial Device"
+            port["display_name"] = PRODUCT_NAME
         else:
             desc = (port.get("description") or "").strip()
             port["display_name"] = desc or port.get("device") or "Serial port"
@@ -159,11 +159,22 @@ class RecoilLink:
                 raise
         if settle_s > 0:
             time.sleep(settle_s)
+        # Soft ping: USB CDC to the emitter can be fine while the receiver is
+        # unpowered / out of range. TIMEOUT must not fail the whole connect.
         result = self.ping()
         if not result.ok:
-            error = result.error or "PING failed"
-            self.disconnect()
-            raise RuntimeError(error)
+            self._last_error = (
+                result.error
+                or "PING failed — emitter linked; power the receiver for radio ACK"
+            )
+            logger.info(
+                "Recoil Link open on %s but radio PING failed (%s). "
+                "Connect kept open; flash/power the receiver before pulse.",
+                port,
+                result.error or "unknown",
+            )
+        else:
+            self._last_error = None
 
     def disconnect(self, *, stop: bool = True) -> None:
         self._stop_lease()
@@ -189,15 +200,20 @@ class RecoilLink:
         return self._exchange("PING")
 
     def pulse(self, duration_ms: int) -> LineResult:
-        """Send one PULSE. Does not wait out the stroke and does not retry."""
+        """Send one PULSE. Does not wait out the stroke and does not retry.
+
+        A pulse cancels an ON hold. The receiver runs the pulse on its own
+        timer and does not stay on waiting for OFF.
+        """
+        self._stop_lease()
         return self._exchange("PULSE", duration_ms=clamp_pulse_ms(duration_ms))
 
     def set_hold(self, on: bool) -> LineResult:
         """
         Hold the coil with a refreshed ON lease, or release it.
 
-        The receiver duty-cycles a long hold (1 s on, 500 ms cool) so the
-        JF-0826B cannot stay energized for the whole reload.
+        The receiver drops the coil after 20 s and then stays off for 10 s.
+        A PULSE cancels this hold.
         """
         if on:
             result = self._exchange("ON")

@@ -42,8 +42,8 @@ def test_limits_match_receiver_header():
     assert MAX_PULSE_MS == 100
     assert MIN_OFF_MS == 20
     assert LEASE_MS == 350
-    assert MAX_CONTINUOUS_ON_MS == 1000
-    assert THERMAL_COOL_MS == 500
+    assert MAX_CONTINUOUS_ON_MS == 20000
+    assert THERMAL_COOL_MS == 10000
     assert clamp_pulse_ms(1) == 5
     assert clamp_pulse_ms(25) == 25
     assert clamp_pulse_ms(400) == 100
@@ -94,3 +94,20 @@ def test_link_pulse_sends_one_clamped_command_and_does_not_retry():
     link.disconnect(stop=False)
     assert fake.written[-1] == b"PULSE 0 5\n"
     assert not fake.is_open
+
+
+def test_pulse_cancels_on_hold():
+    import time
+
+    from modern_third_space.recoil_link.link import RecoilLink
+
+    fake = _FakeSerial()
+    link = RecoilLink()
+    link.connect("COM9", opener=lambda _port: fake, settle_s=0)
+    assert link.set_hold(True).ok
+    result = link.pulse(25)
+    assert result.ok
+    assert link._holding is False
+    time.sleep(0.4)
+    assert fake.written[-1] == b"PULSE 0 25\n"
+    link.disconnect(stop=False)

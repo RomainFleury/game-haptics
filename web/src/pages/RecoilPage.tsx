@@ -1,38 +1,77 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  recoilConnect,
+  recoilDisconnect,
+  recoilListPorts,
+  recoilPulse,
+  recoilSet,
+  recoilStatus,
   relayConnect,
   relayDisconnect,
-  relayListPorts,
   relayMouseStart,
   relayMouseStatus,
   relayMouseStop,
   relayPulse,
   relaySet,
   relayStatus,
+  type RecoilLinkStatus,
   type RelayMouseFireMode,
   type RelayPortInfo,
   type RelayStatusInfo,
 } from "../lib/bridgeApi";
 
 const DEFAULT_PULSE_MS = 40;
-const MIN_PULSE_MS = 40;
+const LC_MIN_PULSE_MS = 40;
+const LINK_MIN_PULSE_MS = 5;
+const LINK_MAX_PULSE_MS = 100;
 const DEFAULT_ADDRESS = 1;
 const DEFAULT_BAUD = 9600;
 const DEFAULT_FIRE_RATE_RPM = 600;
 const MIN_FIRE_RATE_RPM = 60;
-const MAX_FIRE_RATE_RPM = 1500; // 40 ms between pulse starts
+const MAX_FIRE_RATE_RPM = 1500;
 const DEFAULT_BURST_COUNT = 3;
 
 /** WCH CH340 — USB VID:PID used by common LC USB relay sticks */
 const CH340_VID = 0x1a86;
 const CH340_PID = 0x7523;
+/** ThunderStrikeCompany TSC Recoil Link */
+const RECOIL_VID = 0x2fe3;
+const RECOIL_PID = 0x0004;
+
+type BackendKind = "link" | "lc" | "other";
 
 function isLikelyRelayPort(port: RelayPortInfo): boolean {
   if (port.likely_relay) return true;
   if (port.vid === CH340_VID && port.pid === CH340_PID) return true;
   const blob = `${port.description} ${port.manufacturer ?? ""} ${port.hwid}`.toLowerCase();
   return blob.includes("ch340") || blob.includes("ch341") || blob.includes("wch.cn");
+}
+
+function isLikelyLinkPort(port: RelayPortInfo): boolean {
+  if (port.likely_recoil) return true;
+  if (port.vid === RECOIL_VID && port.pid === RECOIL_PID) return true;
+  const blob = `${port.display_name ?? ""} ${port.product ?? ""} ${port.description} ${port.hwid}`.toLowerCase();
+  return blob.includes("recoil link") || blob.includes("vid_2fe3");
+}
+
+function backendKind(port: RelayPortInfo | undefined): BackendKind {
+  if (!port) return "other";
+  if (isLikelyLinkPort(port)) return "link";
+  if (isLikelyRelayPort(port)) return "lc";
+  return "other";
+}
+
+function portOptionLabel(port: RelayPortInfo): string {
+  if (isLikelyLinkPort(port)) {
+    const name = port.display_name || port.product || "TSC Recoil Link";
+    return `${name} (${port.device})`;
+  }
+  if (isLikelyRelayPort(port)) {
+    return `USB LC relay (${port.device})`;
+  }
+  const name = port.display_name || port.description || "Serial";
+  return `${port.device} — ${name}`;
 }
 
 function isPortAccessDeniedError(message: string): boolean {
@@ -45,21 +84,27 @@ function isPortAccessDeniedError(message: string): boolean {
 }
 
 function pickPreferredPort(ports: RelayPortInfo[], current: string): string {
-  // Keep current only if it's already a likely LC relay (or the only choice)
   if (current) {
     const currentPort = ports.find((p) => p.device === current);
-    if (currentPort && isLikelyRelayPort(currentPort)) {
+    if (currentPort && (isLikelyLinkPort(currentPort) || isLikelyRelayPort(currentPort))) {
       return current;
     }
   }
+  const link = ports.find(isLikelyLinkPort);
+  if (link?.device) return link.device;
   const relay = ports.find(isLikelyRelayPort);
-  if (relay?.device) {
-    return relay.device;
-  }
-  if (current && ports.some((p) => p.device === current)) {
-    return current;
-  }
+  if (relay?.device) return relay.device;
+  if (current && ports.some((p) => p.device === current)) return current;
   return ports[0]?.device ?? "";
+}
+
+function sortPorts(ports: RelayPortInfo[]): RelayPortInfo[] {
+  return [...ports].sort((a, b) => {
+    const rank = (p: RelayPortInfo) =>
+      isLikelyLinkPort(p) ? 0 : isLikelyRelayPort(p) ? 1 : 2;
+    const d = rank(a) - rank(b);
+    return d !== 0 ? d : (a.device || "").localeCompare(b.device || "");
+  });
 }
 
 export function RecoilPage() {
@@ -69,6 +114,7 @@ export function RecoilPage() {
   const [address, setAddress] = useState(DEFAULT_ADDRESS);
   const [pulseMs, setPulseMs] = useState(DEFAULT_PULSE_MS);
   const [relay, setRelay] = useState<RelayStatusInfo | null>(null);
+  const [link, setLink] = useState<RecoilLinkStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,31 +124,60 @@ export function RecoilPage() {
   const [fireRateRpm, setFireRateRpm] = useState(DEFAULT_FIRE_RATE_RPM);
   const [burstCount, setBurstCount] = useState(DEFAULT_BURST_COUNT);
 
-  const connected = Boolean(relay?.connected);
+  const selected = useMemo(
+    () => ports.find((p) => p.device === selectedPort),
+    [ports, selectedPort]
+  );
+  const kind = backendKind(selected);
+  const minPulse = kind === "link" ? LINK_MIN_PULSE_MS : LC_MIN_PULSE_MS;
+  const maxPulse = kind === "link" ? LINK_MAX_PULSE_MS : 1000;
+
+  const connected =
+    kind === "link"
+      ? Boolean(link?.connected)
+      : kind === "lc"
+        ? Boolean(relay?.connected)
+        : Boolean(link?.connected || relay?.connected);
+
+  const activeBackend: "link" | "lc" | null = link?.connected
+    ? "link"
+    : relay?.connected
+      ? "lc"
+      : null;
+
   const shotIntervalMs = Math.max(
-    pulseMs,
+    Math.max(minPulse, pulseMs),
     Math.round(60000 / Math.max(MIN_FIRE_RATE_RPM, Math.min(MAX_FIRE_RATE_RPM, fireRateRpm)))
   );
 
   const mouseOptions = useCallback(
     () => ({
-      durationMs: Math.max(MIN_PULSE_MS, pulseMs),
+      durationMs: Math.max(minPulse, Math.min(maxPulse, pulseMs)),
       fireMode,
       fireRateRpm: Math.max(MIN_FIRE_RATE_RPM, Math.min(MAX_FIRE_RATE_RPM, fireRateRpm)),
       burstCount,
     }),
-    [pulseMs, fireMode, fireRateRpm, burstCount]
+    [pulseMs, fireMode, fireRateRpm, burstCount, minPulse, maxPulse]
   );
 
   const refreshStatus = useCallback(async () => {
-    const result = await relayStatus();
-    if (result.success) {
-      setRelay(result.relay ?? null);
-      if (result.relay?.port) {
-        setSelectedPort(result.relay.port);
+    const [relayResult, linkResult, mouse] = await Promise.all([
+      relayStatus(),
+      recoilStatus(),
+      relayMouseStatus(),
+    ]);
+    if (relayResult.success) {
+      setRelay(relayResult.relay ?? null);
+      if (relayResult.relay?.port) {
+        setSelectedPort(relayResult.relay.port);
       }
     }
-    const mouse = await relayMouseStatus();
+    if (linkResult.success) {
+      setLink(linkResult.recoil ?? null);
+      if (linkResult.recoil?.connected && linkResult.recoil.port) {
+        setSelectedPort(linkResult.recoil.port);
+      }
+    }
     if (mouse.success) {
       setMouseListening(Boolean(mouse.running));
       setMousePulses(mouse.pulses ?? 0);
@@ -113,25 +188,22 @@ export function RecoilPage() {
     setBusy(true);
     setError(null);
     try {
-      const result = await relayListPorts();
+      const result = await recoilListPorts();
       if (!result.success) {
         setError(result.error || "Failed to list USB recoil ports");
         setPorts([]);
         return;
       }
-      setPorts(result.ports);
-      setSelectedPort((current) => pickPreferredPort(result.ports, current));
-      const auto = result.ports.find(isLikelyRelayPort);
-      if (auto) {
-        const id =
-          auto.vid != null && auto.pid != null
-            ? ` (USB ${auto.vid.toString(16).padStart(4, "0")}:${auto.pid
-                .toString(16)
-                .padStart(4, "0")})`
-            : "";
-        setMessage(`Auto-selected ${auto.device} — ${auto.description}${id}`);
+      const next = sortPorts(result.ports);
+      setPorts(next);
+      setSelectedPort((current) => pickPreferredPort(next, current));
+      const known = next.filter((p) => isLikelyLinkPort(p) || isLikelyRelayPort(p));
+      if (known.length) {
+        setMessage(
+          `Found ${known.length} known output(s): ${known.map(portOptionLabel).join(", ")}`
+        );
       } else {
-        setMessage(`Found ${result.ports.length} USB/COM port(s)`);
+        setMessage(`Found ${next.length} serial port(s) — none look like Recoil Link or LC relay`);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -160,20 +232,50 @@ export function RecoilPage() {
 
   const handleConnect = async () => {
     if (!selectedPort) {
-      setError("Select a USB/COM port first");
+      setError("Select a recoil output first");
+      return;
+    }
+    if (kind === "other") {
+      setError("Pick a TSC Recoil Link or USB LC relay — unknown ports are not supported");
       return;
     }
     setBusy(true);
     setError(null);
     setMessage(null);
     try {
-      const result = await relayConnect(selectedPort, baud, address);
-      if (!result.success) {
-        setError(result.error || "Connect failed");
-        return;
+      // One active backend — disconnect the other first
+      if (kind === "link" && relay?.connected) {
+        await relayDisconnect();
+        setRelay({ connected: false, is_on: false });
       }
-      setRelay(result.relay ?? null);
-      setMessage(`Connected to ${selectedPort}`);
+      if (kind === "lc" && link?.connected) {
+        await recoilDisconnect();
+        setLink(null);
+      }
+
+      if (kind === "link") {
+        const result = await recoilConnect(selectedPort);
+        if (!result.success) {
+          setError(result.error || "Connect failed");
+          return;
+        }
+        const linked = result.recoil ?? { connected: true, port: selectedPort };
+        setLink(linked);
+        const radioWarn = linked.last_error;
+        setMessage(
+          radioWarn
+            ? `Connected — ${portOptionLabel(selected!)}. Radio: ${radioWarn}`
+            : `Connected — ${portOptionLabel(selected!)}`
+        );
+      } else {
+        const result = await relayConnect(selectedPort, baud, address);
+        if (!result.success) {
+          setError(result.error || "Connect failed");
+          return;
+        }
+        setRelay(result.relay ?? null);
+        setMessage(`Connected — USB LC relay (${selectedPort})`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -189,12 +291,22 @@ export function RecoilPage() {
         await relayMouseStop();
         setMouseListening(false);
       }
-      const result = await relayDisconnect();
-      if (!result.success) {
-        setError(result.error || "Disconnect failed");
-        return;
+      if (link?.connected) {
+        const result = await recoilDisconnect();
+        if (!result.success) {
+          setError(result.error || "Disconnect failed");
+          return;
+        }
+        setLink(null);
       }
-      setRelay({ connected: false, is_on: false });
+      if (relay?.connected) {
+        const result = await relayDisconnect();
+        if (!result.success) {
+          setError(result.error || "Disconnect failed");
+          return;
+        }
+        setRelay({ connected: false, is_on: false });
+      }
       setMessage("Disconnected");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -207,13 +319,23 @@ export function RecoilPage() {
     setBusy(true);
     setError(null);
     try {
-      const result = await relaySet(on);
-      if (!result.success) {
-        setError(result.error || `Failed to turn output ${on ? "ON" : "OFF"}`);
-        return;
+      if (activeBackend === "link") {
+        const result = await recoilSet(on);
+        if (!result.success) {
+          setError(result.error || `Failed to turn output ${on ? "ON" : "OFF"}`);
+          return;
+        }
+        setLink(result.recoil ?? link);
+        setMessage(`Output ${on ? "ON" : "OFF"} (Recoil Link)`);
+      } else {
+        const result = await relaySet(on);
+        if (!result.success) {
+          setError(result.error || `Failed to turn output ${on ? "ON" : "OFF"}`);
+          return;
+        }
+        setRelay(result.relay ?? null);
+        setMessage(`Output ${on ? "ON" : "OFF"}`);
       }
-      setRelay(result.relay ?? null);
-      setMessage(`Output ${on ? "ON" : "OFF"}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -222,16 +344,27 @@ export function RecoilPage() {
   };
 
   const handlePulse = async () => {
+    const ms = Math.max(minPulse, Math.min(maxPulse, pulseMs));
     setBusy(true);
     setError(null);
     try {
-      const result = await relayPulse(Math.max(MIN_PULSE_MS, pulseMs));
-      if (!result.success) {
-        setError(result.error || "Pulse failed");
-        return;
+      if (activeBackend === "link") {
+        const result = await recoilPulse(ms);
+        if (!result.success) {
+          setError(result.error || "Pulse failed");
+          return;
+        }
+        setLink(result.recoil ?? link);
+        setMessage(`Pulsed ${result.duration_ms ?? ms} ms (Recoil Link)`);
+      } else {
+        const result = await relayPulse(ms);
+        if (!result.success) {
+          setError(result.error || "Pulse failed");
+          return;
+        }
+        setRelay(result.relay ?? null);
+        setMessage(`Pulsed ${result.duration_ms ?? ms} ms`);
       }
-      setRelay(result.relay ?? null);
-      setMessage(`Pulsed ${result.duration_ms ?? pulseMs} ms`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -245,7 +378,7 @@ export function RecoilPage() {
     try {
       if (enable) {
         if (!connected) {
-          setError("Connect the USB recoil device before enabling click recoil");
+          setError("Connect a recoil output before enabling click recoil");
           return;
         }
         const result = await relayMouseStart(mouseOptions());
@@ -281,37 +414,35 @@ export function RecoilPage() {
     }
   };
 
-  // Keep listener settings in sync while active
   useEffect(() => {
     if (!mouseListening || !connected) return;
     void relayMouseStart(mouseOptions());
   }, [mouseListening, connected, mouseOptions]);
 
+  const knownPorts = ports.filter((p) => isLikelyLinkPort(p) || isLikelyRelayPort(p));
+  const otherPorts = ports.filter((p) => !isLikelyLinkPort(p) && !isLikelyRelayPort(p));
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <header>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white">Recoil</h1>
-            <p className="mt-2 text-sm md:text-base text-slate-400">
-              USB LC relay for a wired solenoid. Prefer short pulses — coils overheat if left on.
-              Wireless kit setup is on{" "}
-              <Link to="/recoil-link" className="text-sky-400 hover:text-sky-300">
-                Recoil Kit Setup
-              </Link>
-              .
-            </p>
-          </div>
-        </div>
+        <h1 className="text-2xl md:text-3xl font-bold text-white">Recoil</h1>
+        <p className="mt-2 text-sm md:text-base text-slate-400">
+          Test solenoid output over USB LC relay or TSC Recoil Link. Prefer short pulses — coils
+          overheat if left on. Need boards or flash?{" "}
+          <Link to="/recoil-link" className="text-sky-400 hover:text-sky-300">
+            Kit Setup
+          </Link>
+          .
+        </p>
       </header>
 
       <section className="rounded-2xl bg-slate-800/80 p-4 md:p-5 shadow-lg ring-1 ring-white/5 space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm uppercase tracking-wide text-slate-400">Connection</p>
-            <h2 className="text-xl font-semibold text-white">USB LC relay</h2>
+            <p className="text-sm uppercase tracking-wide text-slate-400">Output</p>
+            <h2 className="text-xl font-semibold text-white">Recoil output</h2>
             <p className="mt-1 text-sm text-slate-400">
-              Plugs in over USB; Windows exposes it as a COM port (USB serial).
+              Select a known device — TSC Recoil Link or wired USB LC relay.
             </p>
           </div>
           <span
@@ -321,13 +452,17 @@ export function RecoilPage() {
                 : "bg-slate-700 text-slate-300 ring-1 ring-slate-600"
             }`}
           >
-            {connected ? "Connected" : "Disconnected"}
+            {connected
+              ? activeBackend === "link"
+                ? "Linked"
+                : "Connected"
+              : "Disconnected"}
           </span>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
           <label className="block space-y-1.5">
-            <span className="text-sm text-slate-400">USB device (COM port)</span>
+            <span className="text-sm text-slate-400">Device</span>
             <select
               className="w-full rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-white"
               value={selectedPort}
@@ -336,21 +471,29 @@ export function RecoilPage() {
             >
               {ports.length === 0 ? (
                 <option value="">
-                  {error ? "Port list failed — see error below" : "No USB/COM ports found"}
+                  {error ? "Port list failed — see error below" : "No serial devices found"}
                 </option>
               ) : (
-                ports.map((p) => (
-                  <option key={p.device} value={p.device}>
-                    {p.likely_relay || isLikelyRelayPort(p) ? "★ " : ""}
-                    {p.device}
-                    {p.description ? ` — ${p.description}` : ""}
-                    {p.vid != null && p.pid != null
-                      ? ` [${p.vid.toString(16).padStart(4, "0")}:${p.pid
-                          .toString(16)
-                          .padStart(4, "0")}]`
-                      : ""}
-                  </option>
-                ))
+                <>
+                  {knownPorts.length > 0 && (
+                    <optgroup label="Known outputs">
+                      {knownPorts.map((p) => (
+                        <option key={p.device} value={p.device}>
+                          {portOptionLabel(p)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {otherPorts.length > 0 && (
+                    <optgroup label="Other serial ports">
+                      {otherPorts.map((p) => (
+                        <option key={p.device} value={p.device}>
+                          {portOptionLabel(p)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </>
               )}
             </select>
           </label>
@@ -366,42 +509,44 @@ export function RecoilPage() {
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block space-y-1.5">
-            <span className="text-sm text-slate-400">Baud</span>
-            <input
-              type="number"
-              className="w-full rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-white"
-              value={baud}
-              onChange={(e) => setBaud(Number(e.target.value) || DEFAULT_BAUD)}
-              disabled={busy || connected}
-              min={1200}
-              step={100}
-            />
-          </label>
-          <label className="block space-y-1.5">
-            <span className="text-sm text-slate-400">Switch address</span>
-            <input
-              type="number"
-              className="w-full rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-white"
-              value={address}
-              onChange={(e) => setAddress(Number(e.target.value) || DEFAULT_ADDRESS)}
-              disabled={busy || connected}
-              min={0}
-              max={255}
-            />
-          </label>
-        </div>
+        {kind === "lc" && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block space-y-1.5">
+              <span className="text-sm text-slate-400">Baud</span>
+              <input
+                type="number"
+                className="w-full rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-white"
+                value={baud}
+                onChange={(e) => setBaud(Number(e.target.value) || DEFAULT_BAUD)}
+                disabled={busy || connected}
+                min={1200}
+                step={100}
+              />
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-sm text-slate-400">Switch address</span>
+              <input
+                type="number"
+                className="w-full rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-white"
+                value={address}
+                onChange={(e) => setAddress(Number(e.target.value) || DEFAULT_ADDRESS)}
+                disabled={busy || connected}
+                min={0}
+                max={255}
+              />
+            </label>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2">
           {!connected ? (
             <button
               type="button"
               onClick={() => void handleConnect()}
-              disabled={busy || !selectedPort}
+              disabled={busy || !selectedPort || kind === "other"}
               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
             >
-              Connect
+              {kind === "link" ? "Connect TSC Recoil Link" : "Connect"}
             </button>
           ) : (
             <button
@@ -426,9 +571,8 @@ export function RecoilPage() {
             <p>{error || message}</p>
             {error && isPortAccessDeniedError(error) && (
               <p className="text-rose-200/80 text-xs leading-relaxed">
-                Some software is known to lock USB/COM ports — SignalRGB is a common
-                culprit. Quit it (or anything else using the port), then try Connect
-                again.
+                Some software is known to lock USB/COM ports — SignalRGB is a common culprit.
+                Quit it (or anything else using the port), then try Connect again.
               </p>
             )}
           </div>
@@ -438,7 +582,7 @@ export function RecoilPage() {
       <section className="rounded-2xl bg-slate-800/80 p-4 md:p-5 shadow-lg ring-1 ring-white/5 space-y-4">
         <div>
           <p className="text-sm uppercase tracking-wide text-slate-400">Control</p>
-          <h2 className="text-xl font-semibold text-white">Solenoid / Recoil</h2>
+          <h2 className="text-xl font-semibold text-white">Manual control</h2>
         </div>
 
         <label className="block space-y-1.5 max-w-xs">
@@ -446,17 +590,21 @@ export function RecoilPage() {
           <input
             type="number"
             className="w-full rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-white"
-            value={Math.max(MIN_PULSE_MS, pulseMs)}
+            value={Math.max(minPulse, Math.min(maxPulse, pulseMs))}
             onChange={(e) =>
-              setPulseMs(Math.max(MIN_PULSE_MS, Math.min(1000, Number(e.target.value) || DEFAULT_PULSE_MS)))
+              setPulseMs(
+                Math.max(minPulse, Math.min(maxPulse, Number(e.target.value) || DEFAULT_PULSE_MS))
+              )
             }
             disabled={busy || !connected}
-            min={MIN_PULSE_MS}
-            max={1000}
+            min={minPulse}
+            max={maxPulse}
           />
         </label>
         <p className="text-xs text-slate-500">
-          Minimum {MIN_PULSE_MS} ms. Any ON is force-cleared after 1 s.
+          {kind === "link"
+            ? `Recoil Link: pulses ${LINK_MIN_PULSE_MS}–${LINK_MAX_PULSE_MS} ms. ON holds until OFF, or 20 s, then 10 s off.`
+            : `LC relay: minimum ${LC_MIN_PULSE_MS} ms. Any ON is force-cleared after 1 s.`}
         </p>
 
         <div className="flex flex-wrap gap-2">
@@ -485,27 +633,6 @@ export function RecoilPage() {
             OFF
           </button>
         </div>
-
-        {relay && (
-          <dl className="grid grid-cols-2 gap-2 text-sm text-slate-300 pt-2 border-t border-slate-700">
-            <div>
-              <dt className="text-slate-500">Port</dt>
-              <dd>{relay.port || "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-500">State</dt>
-              <dd>{relay.is_on ? "ON" : "OFF"}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-500">Baud</dt>
-              <dd>{relay.baud ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-slate-500">Address</dt>
-              <dd>{relay.address != null ? `0x${Number(relay.address).toString(16).padStart(2, "0").toUpperCase()}` : "—"}</dd>
-            </div>
-          </dl>
-        )}
       </section>
 
       <section className="rounded-2xl bg-slate-800/80 p-4 md:p-5 shadow-lg ring-1 ring-white/5 space-y-4">
@@ -514,8 +641,7 @@ export function RecoilPage() {
             <p className="text-sm uppercase tracking-wide text-slate-400">Input</p>
             <h2 className="text-xl font-semibold text-white">Click-based recoil</h2>
             <p className="mt-1 text-sm text-slate-400">
-              System-wide left mouse button. Choose a firing mode and fire rate (RPM) for
-              timing between pulses.
+              System-wide left mouse button. Works with whichever output is connected.
             </p>
           </div>
           <span
@@ -585,9 +711,7 @@ export function RecoilPage() {
             />
             <span className="text-xs text-slate-500">
               Shot spacing ≈ <span className="font-mono text-slate-300">{shotIntervalMs} ms</span>
-              {fireMode === "single"
-                ? " (unused in one-by-one)"
-                : ` · max ${MAX_FIRE_RATE_RPM} RPM ≈ ${MIN_PULSE_MS} ms`}
+              {fireMode === "single" ? " (unused in one-by-one)" : ""}
             </span>
           </label>
 
@@ -599,7 +723,9 @@ export function RecoilPage() {
                 className="w-full rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-white"
                 value={burstCount}
                 onChange={(e) =>
-                  setBurstCount(Math.max(1, Math.min(20, Number(e.target.value) || DEFAULT_BURST_COUNT)))
+                  setBurstCount(
+                    Math.max(1, Math.min(20, Number(e.target.value) || DEFAULT_BURST_COUNT))
+                  )
                 }
                 disabled={busy}
                 min={1}
@@ -608,7 +734,8 @@ export function RecoilPage() {
             </label>
           ) : (
             <div className="text-xs text-slate-500 self-end pb-2">
-              Pulse length still uses the Control section duration ({Math.max(MIN_PULSE_MS, pulseMs)} ms).
+              Pulse length uses Manual control ({Math.max(minPulse, Math.min(maxPulse, pulseMs))}{" "}
+              ms).
             </div>
           )}
         </div>
@@ -647,17 +774,41 @@ export function RecoilPage() {
       </section>
 
       <section className="rounded-2xl bg-slate-900/60 p-4 text-sm text-slate-400 ring-1 ring-white/5 space-y-2">
-        <p className="font-medium text-slate-300">Protocol (9600 baud)</p>
+        <p className="font-medium text-slate-300">Debug</p>
         <p>
-          ON: <code className="text-slate-200">A0 01 01 A2</code> · OFF:{" "}
-          <code className="text-slate-200">A0 01 00 A1</code>
+          Backend:{" "}
+          <span className="text-slate-200">
+            {activeBackend === "link"
+              ? `TSC Recoil Link (${link?.port || "—"})`
+              : activeBackend === "lc"
+                ? `USB LC relay (${relay?.port || "—"})`
+                : "none"}
+          </span>
         </p>
-        <p>
-          CLI:{" "}
-          <code className="text-slate-200">
-            python -m modern_third_space.cli relay pulse --port COM3 --ms 40
-          </code>
-        </p>
+        {activeBackend === "lc" && (
+          <p>
+            LC protocol (9600 baud): ON{" "}
+            <code className="text-slate-200">A0 01 01 A2</code> · OFF{" "}
+            <code className="text-slate-200">A0 01 00 A1</code>
+          </p>
+        )}
+        {activeBackend === "link" && (
+          <p>
+            CLI:{" "}
+            <code className="text-slate-200">
+              python -m modern_third_space.cli recoil pulse --port {link?.port || "COMx"} --ms 25
+            </code>
+          </p>
+        )}
+        {activeBackend !== "link" && (
+          <p>
+            CLI:{" "}
+            <code className="text-slate-200">
+              python -m modern_third_space.cli relay pulse --port COM3 --ms 40
+            </code>
+          </p>
+        )}
+        {error && <p className="text-rose-300">Last error: {error}</p>}
       </section>
     </div>
   );

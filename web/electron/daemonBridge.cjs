@@ -1484,6 +1484,20 @@ class DaemonBridge extends EventEmitter {
     }
   }
 
+  async recoilSet(on) {
+    try {
+      const response = await this.sendCommand("recoil_set", { on: Boolean(on) });
+      return {
+        success: response.success ?? response.ok ?? false,
+        on: response.on,
+        recoil: response.recoil,
+        error: response.message,
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
   async relayMouseStart(options = {}) {
     try {
       const params = {

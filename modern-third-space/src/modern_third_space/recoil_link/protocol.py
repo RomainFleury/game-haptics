@@ -32,12 +32,12 @@ MIN_PULSE_MS = 5
 MAX_PULSE_MS = 100
 MIN_OFF_MS = 20
 LEASE_MS = 350
-MAX_CONTINUOUS_ON_MS = 1000
-THERMAL_COOL_MS = 500
+MAX_CONTINUOUS_ON_MS = 20000
+THERMAL_COOL_MS = 10000
 LEASE_REFRESH_S = 0.15
 
 RF_CHANNEL = 76
-PRODUCT_NAME = "Recoil Link TX"
+PRODUCT_NAME = "TSC Recoil Link"
 
 _OK_RE = re.compile(r"^OK (\d+) (\d+) (\d+) (\d+) (\d+)\s*$")
 _ERR_RE = re.compile(r"^ERR (\w+)\s*$")

@@ -1574,7 +1574,7 @@ class VestDaemon:
         """
         Hold or release mechanical recoil (reload cock_back → ON, cock_forward → OFF).
 
-        The wireless receiver caps a hold at 1 s on / 500 ms cool. The wired
+        The wireless receiver caps a hold at 20 s, then forces 10 s off. A pulse cancels the hold. The wired
         relay uses RELOAD_HOLD_SAFETY_S (30s).
         """
         if self._recoil.status().connected:
@@ -2480,11 +2480,12 @@ class VestDaemon:
 
     async def _cmd_relay_mouse_start(self, command: Command) -> Response:
         """Start global left-click → solenoid pulse listening."""
-        if not self._relay.status().connected:
+        # Pulses go through _on_solenoid_recoil (Recoil Link preferred, else LC relay).
+        if not self._recoil.status().connected and not self._relay.status().connected:
             return response_relay_mouse_start(
                 success=False,
                 running=False,
-                error="Relay is not connected — connect on the Relay page first",
+                error="Connect a recoil output first (TSC Recoil Link or USB LC relay)",
                 req_id=command.req_id,
             )
 
@@ -2580,8 +2581,10 @@ class VestDaemon:
 
     async def _cmd_recoil_disconnect(self, command: Command) -> Response:
         try:
+            self._mouse_recoil.stop()
             await asyncio.to_thread(self._recoil.disconnect)
             await self._clients.broadcast(event_recoil_disconnected())
+            await self._clients.broadcast(event_relay_mouse_stopped())
             return response_recoil_disconnect(success=True, req_id=command.req_id)
         except Exception as exc:
             return response_recoil_disconnect(

@@ -75,6 +75,11 @@ function registerRelayHandlers() {
     const daemon = getDaemonBridge();
     return await daemon.recoilPulse(durationMs);
   });
+
+  ipcMain.handle("recoil:set", async (_event, on) => {
+    const daemon = getDaemonBridge();
+    return await daemon.recoilSet(on);
+  });
 }
 
 module.exports = {

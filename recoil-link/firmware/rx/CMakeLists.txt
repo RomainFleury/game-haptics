@@ -8,4 +8,7 @@ target_sources(app PRIVATE
   ../common/recoil_protocol.c
   ../common/recoil_radio.c
 )
+if (CONFIG_BOARD_RECOIL_RECEIVER)
+  target_sources(app PRIVATE ../common/softdevice_release.c)
+endif()
 target_include_directories(app PRIVATE ../common)

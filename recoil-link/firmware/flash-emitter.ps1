@@ -1,4 +1,4 @@
-﻿# Flash Recoil Link TX onto the lab Nordic nRF52840 Dongle (PCA10059).
+﻿# Flash TSC Recoil Link onto the lab Nordic nRF52840 Dongle (PCA10059).
 #
 # 1. Plug the blue Nordic dongle into USB.
 # 2. Press the sideways RESET (not the white SW1).
@@ -41,7 +41,7 @@ if ($nrf -and (Test-Path $nrf)) {
     & $nrf device program --firmware $Zip --traits nordicDfu
     if ($LASTEXITCODE -eq 0) {
         Write-Host ""
-        Write-Host "Flash finished. Dongle should re-enumerate as Recoil Link TX (new COM port)."
+        Write-Host "Flash finished. Dongle should re-enumerate as TSC Recoil Link (new COM port)."
         Write-Host "Ping needs a powered receiver; without one you will see TIMEOUT (USB still OK)."
         Write-Host "Next: flash the receiver, then: python -m modern_third_space.cli recoil ping --port COMx"
         exit 0
@@ -65,4 +65,4 @@ Write-Host "Flashing via legacy DFU → $Port"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host ""
-Write-Host "Flash finished. Replug if needed. Expect product name Recoil Link TX."
+Write-Host "Flash finished. Replug if needed. Expect product name TSC Recoil Link."

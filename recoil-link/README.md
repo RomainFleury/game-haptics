@@ -6,11 +6,12 @@ A lost packet can delay the start of a kick. It cannot stretch the kick, and it 
 
 **Start here (this bench):** [SETUP.md](./SETUP.md) — full build → flash → wire → daemon path.  
 **Exact boards:** [LAB_HARDWARE.md](./LAB_HARDWARE.md).  
+**Receiver start addresses:** [RX_BOOT.md](./RX_BOOT.md).  
 **Session notes:** [JOURNAL.md](./JOURNAL.md).
 
 **Product intent:** a ready-to-make kit. Lab boards today are Nordic **PCA10059** + buttonless Nice!Nano-style RX. Production is custom (or OEM) TX/RX PCBs with the same protocol and host software.
 
-**UI:** **Recoil** (`#/recoil`) connects LC relay or Recoil Link TX for pulse/click. **Kit Setup** (`#/recoil-link`) watches USB/UF2, flashes firmware, and lists parts. CLI: `firmware/flash-emitter.ps1`.
+**UI:** **Recoil** (`#/recoil`) connects LC relay or TSC Recoil Link for pulse/click. **Kit Setup** (`#/recoil-link`) shows hardware status + shopping list. **Firmware installer** (`#/recoil-link/flash`) is the only flash UI. CLI: `firmware/flash-emitter.ps1`.
 
 ```
 PC USB CDC  →  nRF52840 dongle (PTX)
@@ -56,7 +57,7 @@ buck GND ── pack −
 - Do not use **P0.13** (Nice!Nano v2: driving it high can cut the 3.3 V rail).
 - Do not use **P0.04** (battery-sense ADC).
 - Keep the solenoid loop away from the chip antenna.
-- Receiver hard-caps a pulse at 100 ms and a continuous hold at 1 s, then forces 500 ms off.
+- Receiver hard-caps a pulse at 100 ms and a continuous hold at 20 s, then forces 10 s off.
 
 Bench order: flash both boards → `ping` with no solenoid → confirm three boot blinks → check P0.10 → then connect the coil. Details in [SETUP.md](./SETUP.md).
 
@@ -105,7 +106,7 @@ Daemon commands: `recoil_connect`, `recoil_disconnect`, `recoil_status`, `recoil
 | Pulse window | 5–100 ms, timed on the receiver |
 | Gap | 20 ms forced off after each pulse |
 | Duplicate sequence | Ignored |
-| Hold | 1 s max, then 500 ms cool |
+| Hold | 20 s max, then 10 s cool |
 
 USB lines the dongle accepts:
 

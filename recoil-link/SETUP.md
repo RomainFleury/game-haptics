@@ -2,7 +2,8 @@
 
 Goal: **plug-and-play wireless solenoid feedback** — game fire → vest daemon → USB emitter → 2.4 GHz ESB → receiver → MOSFET → JF-0826B, with receiver-timed pulses so a lost radio packet cannot leave the coil on.
 
-Hardware locked to what is on the desk: [LAB_HARDWARE.md](./LAB_HARDWARE.md).
+Hardware locked to what is on the desk: [LAB_HARDWARE.md](./LAB_HARDWARE.md).  
+Receiver start addresses and the SoftDevice boot step: [RX_BOOT.md](./RX_BOOT.md).
 
 ```
 Game / Kit Setup UI
@@ -11,7 +12,7 @@ Game / Kit Setup UI
 Python daemon :5050
         │  recoil_connect / recoil_pulse
         ▼
-Nordic PCA10059  (Recoil Link TX, USB CDC)
+Nordic PCA10059  (TSC Recoil Link, USB CDC)
         │  ESB 2 Mbps ch 76
         ▼
 Nice!Nano-style RX  →  AO3400A  →  JF-0826B
@@ -85,8 +86,8 @@ Produces under `firmware\dist\`:
 |------|--------|------------|
 | `recoil-dongle-dfu.zip` | PCA10059 emitter | Open DFU (`flash-emitter.ps1`) |
 | `recoil-dongle.hex` | same | packaging / nRF Connect Programmer |
-| `recoil-receiver.uf2` | Nice!Nano **with** SoftDevice | `flash-receiver.ps1` / Kit Setup |
-| `recoil-receiver-nosd.uf2` | Nice!Nano **without** SoftDevice | `flash-receiver.ps1 -NoSoftDevice` |
+| `recoil-receiver.uf2` | Nice!Nano **with** SoftDevice (S140) | `flash-receiver.ps1` — script picks this when INFO lists a SoftDevice |
+| `recoil-receiver-nosd.uf2` | Nice!Nano **without** SoftDevice | `flash-receiver.ps1` — script picks this when INFO says SoftDevice not found |
 
 Rebuild after any protocol or pin change. TX and RX must stay on the same radio constants (`firmware/common/`).
 
@@ -107,7 +108,7 @@ cd F:\DEV-SmSSD\libthirdspacevest-simhub\recoil-link\firmware
 ```
 
 5. Unplug and replug **without** holding RESET.
-6. New CDC device should appear as **Recoil Link TX** (manufacturer Third Space). Note the new COM port.
+6. New CDC device should appear as **TSC Recoil Link** (manufacturer ThunderStrikeCompany). Note the new COM port.
 
 If flash fails: stay in red DFU mode, confirm the COM port, retry. Do not use UF2 / Kit Setup “Install” for this board.
 
@@ -118,18 +119,27 @@ If flash fails: stay in red DFU mode, confirm the COM port, retry. Do not use UF
 1. Plug **one** receiver USB-C into the PC. Leave the spare unpowered.
 2. Short **RST → GND** twice quickly (pads next to each other near USB).
 3. Wait for a UF2 volume (`NICENANO` or similar) with `INFO_UF2.TXT`.
-4. Flash (script picks SoftDevice vs nosd from INFO unless overridden):
+4. The script reads the SoftDevice line and picks the image. Do not copy a UF2 by hand unless you have checked its reset vector (see `RecoilImageCheck.ps1`).
 
 ```powershell
 cd F:\DEV-SmSSD\libthirdspacevest-simhub\recoil-link\firmware
+
+# Optional: snapshot CircuitPython / other SoftDevice firmware first
+.\flash-receiver.ps1 -Drive E: -Save
+
+# SoftDevice listed  → recoil-receiver.uf2 @ 0x26000 (disables S140, then ESB)
+# SoftDevice not found → recoil-receiver-nosd.uf2 @ 0x1000
 .\flash-receiver.ps1 -Drive E:
+
+# Later, put CircuitPython / the saved SoftDevice app back:
+.\flash-receiver.ps1 -Drive E: -Restore .\backups\rx-YYYYMMDD-HHMMSS
 ```
 
-Or use **Kit Setup → Install kit firmware** when the receiver shows Ready.
+The script **auto-saves** `CURRENT.UF2` before it writes. It refuses a nosd file while SoftDevice is installed (Adafruit would skip those writes and leave the old app running). It also refuses an image whose reset vector is not inside the slot it is written to.
 
-5. Re-plug. Status LED should **blink three times** at boot.
+A full SoftDevice wipe still needs **SWD** (`wipe-softdevice.ps1`: J-Link / DK / CMSIS-DAP on the SWD/SWC pads). This bench does not need that wipe: the SoftDevice-slot image disables S140 in the reset hook and then runs ESB.
 
-Wrong UF2 (SD vs nosd) → board that never blinks. Try the other image.
+5. Re-plug. Status LED should show a **short solid blue**, then **three blinks**, then idle off. A repeating group of N blinks with a ~2 s gap is a fail-safe (5 = SoftDevice release failed).
 
 ---
 
@@ -213,7 +223,8 @@ Radio snapshot: ESB 2 Mbps, channel **76**, address base `A5 3C 91 6E` + prefix 
 |---------|--------|
 | No UF2BOOT on emitter | Expected — use RESET + COM + `flash-emitter.ps1` |
 | Red pulse forever after “flash” | Flash failed or still in DFU — replug without RESET; re-flash |
-| Receiver never blinks | Wrong UF2 (SD vs nosd); retry other image |
+| Receiver never blinks, or blue blinks with no gap | Reset vector was linked at 0. Rebuild; `build.ps1` rejects that UF2 |
+| RX: N slow blinks, then ~2 s dark | Fail-safe: 1=protocol, 2=HFCLK, 3=esb_init, 4=esb_start_rx, 5=SoftDevice release, 6=release hook did not run |
 | `ERR TIMEOUT` on ping | RX powered? Antenna clear? Only one RX? Same firmware pair? |
 | Coil stuck / hot | Pulldown missing; wrong FET; stop with `recoil stop` |
 | Daemon can’t open port | Another app/UI holds COM — Disconnect first |

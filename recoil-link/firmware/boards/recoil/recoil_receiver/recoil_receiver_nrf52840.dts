@@ -6,9 +6,16 @@
 	compatible = "nordic,nrf52840";
 
 	chosen {
+		/*
+		 * S140 owns RAM from 0x20000000 until soc_reset_hook() disables
+		 * it. The hook's stack is the vector SP, so this region must
+		 * start at or above APP_RAM_BASE (0x20004000, same as CircuitPython).
+		 */
 		zephyr,sram = &sram0;
 		zephyr,flash = &flash0;
 		zephyr,code-partition = &code_partition;
+		zephyr,console = &cdc_acm_uart0;
+		zephyr,shell-uart = &cdc_acm_uart0;
 	};
 
 	leds {
@@ -27,6 +34,15 @@
 			label = "Solenoid gate";
 		};
 	};
+};
+
+/*
+ * Partition Manager is off (rx/sysbuild.conf). SRAM_BASE_ADDRESS comes from
+ * this reg. Shift it to APP_RAM_BASE so the reset stack is above S140 RAM.
+ * Unit-address warning from dtc is expected and harmless.
+ */
+&sram0 {
+	reg = <0x20004000 0x3c000>;
 };
 
 &gpio0 {
@@ -60,5 +76,14 @@
 			label = "code_partition";
 			reg = <0x00026000 0x000CE000>;
 		};
+	};
+};
+
+zephyr_udc0: &usbd {
+	compatible = "nordic,nrf-usbd";
+	status = "okay";
+
+	cdc_acm_uart0: cdc_acm_uart0 {
+		compatible = "zephyr,cdc-acm-uart";
 	};
 };

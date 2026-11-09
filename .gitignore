@@ -3,6 +3,7 @@ build
 # Recoil Link: keep release firmware binaries in git; ignore west intermediates only
 !recoil-link/firmware/dist/
 !recoil-link/firmware/dist/**
+recoil-link/firmware/backups/
 node_modules
 repomix-output.*
 

@@ -16,9 +16,14 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/watchdog.h>
 #include <zephyr/kernel.h>
+#include <zephyr/sys/printk.h>
 #include <zephyr/sys/onoff.h>
 #include <zephyr/drivers/clock_control.h>
 #include <zephyr/drivers/clock_control/nrf_clock_control.h>
+
+#if defined(CONFIG_BOARD_RECOIL_RECEIVER)
+#include "softdevice_release.h"
+#endif
 
 #define GATE_NODE DT_NODELABEL(solenoid_gate)
 #define LED_NODE DT_NODELABEL(status_led)
@@ -233,10 +238,11 @@ static void handle_packet(const struct recoil_tx_packet *packet)
 			out.flags |= RECOIL_FLAG_CLAMPED;
 		}
 		accept_seq(packet);
+		/* A pulse ends an ON hold. Do not resume that hold after the pulse. */
+		out.pending_lease = false;
 		if (out.state == ST_COOL) {
 			out.pending_pulse = true;
 			out.pending_ms = duration_ms;
-			out.pending_lease = false;
 			break;
 		}
 		budget = continuous_budget(now);
@@ -303,12 +309,31 @@ static void blink(int times)
 	}
 }
 
-static void fail_safe_halt(void)
+/*
+ * Coded halt (repeats forever): N blinks, then ~2 s dark.
+ * Easy to count: on 200 ms / off 200 ms within a group.
+ *   1 = protocol self-test
+ *   2 = HF clock start
+ *   3 = esb_init
+ *   4 = esb_start_rx
+ *   5 = SoftDevice release failed
+ *   6 = SoftDevice release hook did not run
+ */
+static void fail_safe_halt(int code)
 {
 	drive(false);
+	if (code < 1) {
+		code = 1;
+	}
+	printk("recoil-rx FAILSAFE %d\n", code);
 	while (1) {
-		gpio_pin_toggle_dt(&led);
-		k_sleep(K_MSEC(80));
+		for (int i = 0; i < code; i++) {
+			gpio_pin_set_dt(&led, 1);
+			k_sleep(K_MSEC(200));
+			gpio_pin_set_dt(&led, 0);
+			k_sleep(K_MSEC(200));
+		}
+		k_sleep(K_MSEC(2000));
 	}
 }
 
@@ -346,31 +371,68 @@ int main(void)
 {
 	int err;
 
+	printk("recoil-rx boot\n");
+
 	if (!gpio_is_ready_dt(&gate) || !gpio_is_ready_dt(&led)) {
+		printk("recoil-rx gpio not ready\n");
 		return 0;
 	}
 	gpio_pin_configure_dt(&gate, GPIO_OUTPUT_INACTIVE);
 	gpio_pin_configure_dt(&led, GPIO_OUTPUT_INACTIVE);
 	drive(false);
 
+	/* Brief solid on: proves this UF2 image started. */
+	gpio_pin_set_dt(&led, 1);
+	k_sleep(K_MSEC(400));
+	gpio_pin_set_dt(&led, 0);
+	k_sleep(K_MSEC(200));
+
+#if defined(CONFIG_BOARD_RECOIL_RECEIVER)
+	/*
+	 * S140 is released from soc_reset_hook() before BSS clear.
+	 * If that hook did not run, try once from main.
+	 * Fail-safe 5 = release failed; 6 = hook never ran.
+	 */
+	printk("recoil-rx sd_release ran=%d result=%d\n",
+	       (int)recoil_softdevice_release_ran(),
+	       recoil_softdevice_release_result());
+	if (!recoil_softdevice_release_ran() ||
+	    recoil_softdevice_release_result() != 0) {
+		(void)recoil_softdevice_release();
+		printk("recoil-rx sd_release retry ran=%d result=%d\n",
+		       (int)recoil_softdevice_release_ran(),
+		       recoil_softdevice_release_result());
+		if (!recoil_softdevice_release_ran()) {
+			fail_safe_halt(6);
+		}
+		if (recoil_softdevice_release_result() != 0) {
+			fail_safe_halt(5);
+		}
+	}
+#endif
+
 	if (!recoil_protocol_self_test()) {
-		fail_safe_halt();
+		fail_safe_halt(1);
 	}
 	blink(3);
 
 	err = clocks_start();
 	if (err) {
-		fail_safe_halt();
+		printk("recoil-rx clocks_start=%d\n", err);
+		fail_safe_halt(2);
 	}
 	err = recoil_esb_init(true, event_handler);
 	if (err) {
-		fail_safe_halt();
+		printk("recoil-rx esb_init=%d\n", err);
+		fail_safe_halt(3);
 	}
 	preload_ack();
 	err = esb_start_rx();
 	if (err) {
-		fail_safe_halt();
+		printk("recoil-rx esb_start_rx=%d\n", err);
+		fail_safe_halt(4);
 	}
+	printk("recoil-rx radio up\n");
 	watchdog_start();
 
 	while (1) {

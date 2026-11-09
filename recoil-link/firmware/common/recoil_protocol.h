@@ -58,8 +58,9 @@
 #define RECOIL_MAX_PULSE_MS 100
 #define RECOIL_MIN_OFF_MS 20
 #define RECOIL_LEASE_MS 350
-#define RECOIL_MAX_CONTINUOUS_ON_MS 1000
-#define RECOIL_THERMAL_COOL_MS 500
+/* A reload holds the coil until OFF. 20 s is the stuck-command cap. */
+#define RECOIL_MAX_CONTINUOUS_ON_MS 20000
+#define RECOIL_THERMAL_COOL_MS 10000
 
 /* 2476 MHz, above typical Wi-Fi channel 11. Both ends must match. */
 #define RECOIL_RF_CHANNEL 76
