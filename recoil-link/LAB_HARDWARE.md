@@ -18,6 +18,7 @@ Photos used: emitter `IMG_7731`, receiver `IMG_7730`.
 | **How to recognize** | Blue PCB, Nordic logo, molded **USB-A** stick, white face button **SW1**, tiny **sideways RESET** next to SW1, LEDs LD1/LD2 |
 | **SoC** | nRF52840 (USB + 2.4 GHz ESB capable) |
 | **Role in kit** | Recoil Link **TX / emitter** (USB CDC ↔ ESB) |
+| **Kit choice** | Stay on this PCA10059. No second emitter board. |
 
 ### Enter bootloader (DFU)
 
@@ -38,7 +39,7 @@ Photos used: emitter `IMG_7731`, receiver `IMG_7730`.
 ### Firmware notes
 
 - TX builds against Zephyr board **`nrf52840dongle/nrf52840`** with app linked at **`0x1000`** (Open Bootloader).
-- USB product string after flash: **Recoil Link TX**. Status LED uses PCA10059 red (P0.8) when using the stock board aliases.
+- USB after flash: product **TSC Recoil Link**, manufacturer **ThunderStrikeCompany** (not TN Games / Third Space). Status LED uses PCA10059 red (P0.8) when using the stock board aliases.
 
 ---
 
@@ -57,8 +58,8 @@ Photos used: emitter `IMG_7731`, receiver `IMG_7730`.
 1. Plug USB-C into the PC.
 2. Briefly short **RST → GND** **twice** quickly (tweezers) — same as Nice!Nano double-tap reset.
 3. Expect a mass-storage volume (often **`NICENANO`**) with `INFO_UF2.TXT`.
-4. If SoftDevice is listed in `INFO_UF2.TXT`, flash **`recoil-receiver.uf2`** (app @ `0x26000`).
-5. If no SoftDevice, use **`recoil-receiver-nosd.uf2`** (app @ `0x1000`).
+4. `flash-receiver.ps1` reads `INFO_UF2.TXT`. SoftDevice present → `recoil-receiver.uf2` @ `0x26000` (disables S140, then ESB). SoftDevice absent → `recoil-receiver-nosd.uf2` @ `0x1000`. Adafruit **skips** nosd writes while a SoftDevice is installed.
+5. SoftDevice apps (CircuitPython): `flash-receiver.ps1 -Save` / `-Restore` snapshots `CURRENT.UF2` under `firmware/backups/`. The flash script auto-saves before it writes.
 6. Flash **one** receiver only; keep the spare unpowered.
 
 ### Flash method

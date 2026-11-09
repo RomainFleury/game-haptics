@@ -179,6 +179,10 @@ Radio snapshot (change only with a version bump and both ends flashed):
 
 ## Session log
 
+### 2026-11-08 — Emitter stays the PCA10059
+
+The Recoil Link emitter stays the Nordic **PCA10059** dev dongle. Do not replace it with a Raytac MDBT50Q-CX-40 or a custom USB stick. There is one emitter firmware: Zephyr board `nrf52840dongle/nrf52840`, app at `0x1000`, flash by Open DFU.
+
 ### 2026-03-07 — Dedicated Recoil Link UI page
 
 - New Electron page `#/recoil-link` for kit setup (checklist, connect, pulse).
