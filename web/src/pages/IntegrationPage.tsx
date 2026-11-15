@@ -6,6 +6,7 @@ import {
   PistolWhipIntegrationPage,
   BattleSisterIntegrationPage,
   GunmanContractsIntegrationPage,
+  CyberpunkIntegrationPage,
   Titanfall2IntegrationPage,
   ScreenHealthIntegrationPage,
   ScreenHealthBuilderPage,
@@ -23,6 +24,7 @@ const INTEGRATION_PAGES: Record<string, React.ComponentType> = {
   pistolwhip: PistolWhipIntegrationPage,
   battlesister: BattleSisterIntegrationPage,
   gunmancontracts: GunmanContractsIntegrationPage,
+  cyberpunk: CyberpunkIntegrationPage,
   titanfall2: Titanfall2IntegrationPage,
   screen_health: ScreenHealthIntegrationPage,
 };

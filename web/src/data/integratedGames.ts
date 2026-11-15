@@ -80,6 +80,17 @@ export const integratedGames: IntegratedGameConfig[] = [
     tags: ["vr", "fps", "western", "beta"],
   },
   {
+    id: "cyberpunk",
+    name: "Cyberpunk 2077",
+    description: "Hit + gunfire recoil via RED4ext/redscript TCP events",
+    icon: "🌃",
+    steamAppId: 1091500,
+    hasConfiguration: true,
+    hasSetupGuide: true,
+    requiresMod: true,
+    tags: ["fps", "rpg", "beta"],
+  },
+  {
     id: "titanfall2",
     name: "Titanfall 2",
     description: "Campaign vest + gun recoil via Northstar (flat + VR profiles)",

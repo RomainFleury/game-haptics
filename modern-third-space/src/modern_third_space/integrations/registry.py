@@ -239,6 +239,30 @@ register_integration(GameIntegrationSpec(
     mod_url="https://github.com/floh-bhaptics/GunmanContracts_bhaptics",
 ))
 
+# Cyberpunk 2077 (RED4ext + redscript TCP client)
+register_integration(GameIntegrationSpec(
+    game_id="cyberpunk",
+    game_name="Cyberpunk 2077",
+    integration_type=IntegrationType.TCP_CLIENT,
+    status=IntegrationStatus.BETA,
+    manager_module="cyberpunk_manager",
+    manager_class="CyberpunkManager",
+    daemon_commands=[
+        "cyberpunk_start",
+        "cyberpunk_stop",
+        "cyberpunk_status",
+        "cyberpunk_event",
+    ],
+    event_types=[
+        "gun_fire", "shotgun_fire", "rifle_fire", "smg_fire", "sniper_fire",
+        "player_hit",
+    ],
+    has_directional_damage=True,
+    docs_file="docs-external-integrations-ideas/CYBERPUNK_INTEGRATION.md",
+    requires_external_mod=True,
+    mod_url="https://www.nexusmods.com/cyberpunk2077/mods/2380",
+))
+
 # Titanfall 2 VR (Northstar TCP client; Florian's bHaptics/ProTube plugin)
 register_integration(GameIntegrationSpec(
     game_id="titanfall2",

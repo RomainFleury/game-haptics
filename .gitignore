@@ -82,6 +82,9 @@ _ReSharper*/
 *.dll
 *.exe
 *.pdb
+
+# Shipped game-mod binaries under mods/ are versioned (Install Mod copies these).
+!mods/**/*.dll
 *.cache
 *.ilk
 *.meta

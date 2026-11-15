@@ -80,6 +80,11 @@ class CommandType(Enum):
     GUNMANCONTRACTS_STOP = "gunmancontracts_stop"
     GUNMANCONTRACTS_STATUS = "gunmancontracts_status"
     GUNMANCONTRACTS_EVENT = "gunmancontracts_event"
+    # Cyberpunk 2077 (RED4ext + redscript TCP client)
+    CYBERPUNK_START = "cyberpunk_start"
+    CYBERPUNK_STOP = "cyberpunk_stop"
+    CYBERPUNK_STATUS = "cyberpunk_status"
+    CYBERPUNK_EVENT = "cyberpunk_event"
     # Titanfall 2 VR (Northstar TCP client)
     TITANFALL2_START = "titanfall2_start"
     TITANFALL2_STOP = "titanfall2_stop"
@@ -170,6 +175,10 @@ class EventType(Enum):
     GUNMANCONTRACTS_STARTED = "gunmancontracts_started"
     GUNMANCONTRACTS_STOPPED = "gunmancontracts_stopped"
     GUNMANCONTRACTS_GAME_EVENT = "gunmancontracts_game_event"
+    # Cyberpunk 2077
+    CYBERPUNK_STARTED = "cyberpunk_started"
+    CYBERPUNK_STOPPED = "cyberpunk_stopped"
+    CYBERPUNK_GAME_EVENT = "cyberpunk_game_event"
     # Titanfall 2 VR
     TITANFALL2_STARTED = "titanfall2_started"
     TITANFALL2_STOPPED = "titanfall2_stopped"
@@ -1189,6 +1198,77 @@ def response_gunmancontracts_event(
 ) -> Response:
     return Response(
         response="gunmancontracts_event",
+        req_id=req_id,
+        success=success,
+        message=error,
+    )
+
+
+def event_cyberpunk_started() -> Event:
+    return Event(event=EventType.CYBERPUNK_STARTED.value)
+
+
+def event_cyberpunk_stopped() -> Event:
+    return Event(event=EventType.CYBERPUNK_STOPPED.value)
+
+
+def event_cyberpunk_game_event(
+    event_type: str,
+    params: Optional[Dict[str, Any]] = None,
+) -> Event:
+    return Event(
+        event=EventType.CYBERPUNK_GAME_EVENT.value,
+        event_type=event_type,
+        params=params,
+        hand=(params or {}).get("hand"),
+    )
+
+
+def response_cyberpunk_start(
+    success: bool,
+    error: Optional[str] = None,
+    req_id: Optional[str] = None,
+) -> Response:
+    return Response(
+        response="cyberpunk_start",
+        req_id=req_id,
+        success=success,
+        message=error,
+    )
+
+
+def response_cyberpunk_stop(success: bool, req_id: Optional[str] = None) -> Response:
+    return Response(
+        response="cyberpunk_stop",
+        req_id=req_id,
+        success=success,
+    )
+
+
+def response_cyberpunk_status(
+    running: bool,
+    events_received: int = 0,
+    last_event_ts: Optional[float] = None,
+    last_event_type: Optional[str] = None,
+    req_id: Optional[str] = None,
+) -> Response:
+    return Response(
+        response="cyberpunk_status",
+        req_id=req_id,
+        running=running,
+        events_received=events_received,
+        last_event_ts=last_event_ts,
+        last_event_type=last_event_type,
+    )
+
+
+def response_cyberpunk_event(
+    success: bool,
+    error: Optional[str] = None,
+    req_id: Optional[str] = None,
+) -> Response:
+    return Response(
+        response="cyberpunk_event",
         req_id=req_id,
         success=success,
         message=error,

@@ -117,6 +117,19 @@ contextBridge.exposeInMainWorld("vestBridge", {
   gunmancontractsSetGameDir: (gameDir) => ipcRenderer.invoke("gunmancontracts:setGameDir", gameDir),
   gunmancontractsCheckModInstalled: () => ipcRenderer.invoke("gunmancontracts:checkModInstalled"),
   gunmancontractsInstallMod: () => ipcRenderer.invoke("gunmancontracts:installMod"),
+  cyberpunkStart: () => ipcRenderer.invoke("cyberpunk:start"),
+  cyberpunkStop: () => ipcRenderer.invoke("cyberpunk:stop"),
+  cyberpunkStatus: () => ipcRenderer.invoke("cyberpunk:status"),
+  cyberpunkGetSettings: () => ipcRenderer.invoke("cyberpunk:getSettings"),
+  cyberpunkSetSolenoidRecoil: (solenoidRecoil) =>
+    ipcRenderer.invoke("cyberpunk:setSolenoidRecoil", solenoidRecoil),
+  cyberpunkSetEnabledEvents: (enabledEvents) =>
+    ipcRenderer.invoke("cyberpunk:setEnabledEvents", enabledEvents),
+  cyberpunkBrowseGameDir: () => ipcRenderer.invoke("cyberpunk:browseGameDir"),
+  cyberpunkGetGameDir: () => ipcRenderer.invoke("cyberpunk:getGameDir"),
+  cyberpunkSetGameDir: (gameDir) => ipcRenderer.invoke("cyberpunk:setGameDir", gameDir),
+  cyberpunkCheckModInstalled: () => ipcRenderer.invoke("cyberpunk:checkModInstalled"),
+  cyberpunkInstallMod: () => ipcRenderer.invoke("cyberpunk:installMod"),
 
   titanfall2Start: () => ipcRenderer.invoke("titanfall2:start"),
   titanfall2Stop: () => ipcRenderer.invoke("titanfall2:stop"),

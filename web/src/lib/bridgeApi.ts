@@ -694,6 +694,60 @@ declare global {
         warning?: string;
         error?: string;
       }>;
+      cyberpunkStart: () => Promise<{ success: boolean; error?: string }>;
+      cyberpunkStop: () => Promise<{ success: boolean; error?: string }>;
+      cyberpunkStatus: () => Promise<{
+        success: boolean;
+        running: boolean;
+        events_received?: number;
+        last_event_ts?: number | null;
+        last_event_type?: string | null;
+        error?: string;
+      }>;
+      cyberpunkGetSettings: () => Promise<{
+        success: boolean;
+        gameDir?: string | null;
+        solenoidRecoil?: SolenoidRecoilSettings;
+        enabledEvents?: Record<string, boolean>;
+        error?: string;
+      }>;
+      cyberpunkSetSolenoidRecoil: (
+        solenoidRecoil: Partial<SolenoidRecoilSettings>
+      ) => Promise<{ success: boolean; solenoidRecoil?: SolenoidRecoilSettings; error?: string }>;
+      cyberpunkSetEnabledEvents: (
+        enabledEvents: Record<string, boolean>
+      ) => Promise<{ success: boolean; enabledEvents?: Record<string, boolean>; error?: string }>;
+      cyberpunkBrowseGameDir: () => Promise<{
+        success: boolean;
+        gameDir?: string;
+        canceled?: boolean;
+        error?: string;
+      }>;
+      cyberpunkGetGameDir: () => Promise<{
+        success: boolean;
+        gameDir?: string | null;
+        error?: string;
+      }>;
+      cyberpunkSetGameDir: (gameDir: string | null) => Promise<{ success: boolean; error?: string }>;
+      cyberpunkCheckModInstalled: () => Promise<{
+        success: boolean;
+        installed?: boolean;
+        dllInstalled?: boolean;
+        scriptsInstalled?: boolean;
+        red4extInstalled?: boolean;
+        redscriptInstalled?: boolean;
+        sourceAvailable?: boolean;
+        missingFiles?: string[];
+        gameDir?: string;
+        error?: string;
+      }>;
+      cyberpunkInstallMod: () => Promise<{
+        success: boolean;
+        copiedFiles?: string[];
+        destination?: string;
+        warning?: string;
+        error?: string;
+      }>;
       titanfall2Start: () => Promise<{ success: boolean; error?: string }>;
       titanfall2Stop: () => Promise<{ success: boolean; error?: string }>;
       titanfall2Status: () => Promise<{
@@ -1432,6 +1486,83 @@ export async function gunmancontractsInstallMod(): Promise<{
   error?: string;
 }> {
   return await ensureBridge().gunmancontractsInstallMod();
+}
+
+export type CyberpunkStatus = {
+  success?: boolean;
+  running: boolean;
+  events_received?: number;
+  last_event_ts?: number | null;
+  last_event_type?: string | null;
+  error?: string;
+};
+
+export async function cyberpunkStart(): Promise<{ success: boolean; error?: string }> {
+  return await ensureBridge().cyberpunkStart();
+}
+
+export async function cyberpunkStop(): Promise<{ success: boolean; error?: string }> {
+  return await ensureBridge().cyberpunkStop();
+}
+
+export async function cyberpunkStatus(): Promise<CyberpunkStatus> {
+  return await ensureBridge().cyberpunkStatus();
+}
+
+export async function cyberpunkGetSettings(): Promise<{
+  success: boolean;
+  gameDir?: string | null;
+  solenoidRecoil?: SolenoidRecoilSettings;
+  enabledEvents?: Record<string, boolean>;
+  error?: string;
+}> {
+  return await ensureBridge().cyberpunkGetSettings();
+}
+
+export async function cyberpunkSetSolenoidRecoil(
+  solenoidRecoil: Partial<SolenoidRecoilSettings>
+): Promise<{ success: boolean; solenoidRecoil?: SolenoidRecoilSettings; error?: string }> {
+  return await ensureBridge().cyberpunkSetSolenoidRecoil(solenoidRecoil);
+}
+
+export async function cyberpunkSetEnabledEvents(
+  enabledEvents: Record<string, boolean>
+): Promise<{ success: boolean; enabledEvents?: Record<string, boolean>; error?: string }> {
+  return await ensureBridge().cyberpunkSetEnabledEvents(enabledEvents);
+}
+
+export async function cyberpunkBrowseGameDir(): Promise<{
+  success: boolean;
+  gameDir?: string;
+  canceled?: boolean;
+  error?: string;
+}> {
+  return await ensureBridge().cyberpunkBrowseGameDir();
+}
+
+export async function cyberpunkCheckModInstalled(): Promise<{
+  success: boolean;
+  installed?: boolean;
+  dllInstalled?: boolean;
+  scriptsInstalled?: boolean;
+  red4extInstalled?: boolean;
+  redscriptInstalled?: boolean;
+  sourceAvailable?: boolean;
+  missingFiles?: string[];
+  gameDir?: string;
+  error?: string;
+}> {
+  return await ensureBridge().cyberpunkCheckModInstalled();
+}
+
+export async function cyberpunkInstallMod(): Promise<{
+  success: boolean;
+  copiedFiles?: string[];
+  destination?: string;
+  warning?: string;
+  error?: string;
+}> {
+  return await ensureBridge().cyberpunkInstallMod();
 }
 
 export type Titanfall2Status = {

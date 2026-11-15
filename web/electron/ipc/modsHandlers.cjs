@@ -66,6 +66,18 @@ const MOD_CONFIG = {
     targetFolder: "Mods",
     description: "MelonLoader TCP client for Gunman Contracts haptic feedback",
   },
+  "cyberpunk": {
+    name: "Cyberpunk 2077",
+    directory: "cyberpunk",
+    files: [
+      "red4ext/plugins/TSC_Cyberpunk/TSC_Cyberpunk.dll",
+      "r6/scripts/TSC/Natives.reds",
+      "r6/scripts/TSC/FireHooks.reds",
+      "r6/scripts/TSC/HitHooks.reds",
+    ],
+    targetFolder: "red4ext + r6/scripts",
+    description: "RED4ext + redscript TCP client for Cyberpunk 2077 haptic feedback",
+  },
   "titanfall2": {
     name: "Titanfall 2",
     directory: "titanfall2",

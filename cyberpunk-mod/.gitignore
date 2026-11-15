@@ -1,0 +1,9 @@
+deps/
+build/
+bin/
+*.user
+*.suo
+.vs/
+CMakeFiles/
+CMakeCache.txt
+*.log

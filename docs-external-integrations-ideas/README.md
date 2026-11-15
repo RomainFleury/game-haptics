@@ -92,6 +92,12 @@ These documents outline approaches, patterns, and implementation strategies for 
   - Steam App ID 2421750; install `ThirdSpace_GunmanContracts.dll`
   - ✅ **IMPLEMENTED** - See `gunmancontracts-mod/`
 
+- **`CYBERPUNK_INTEGRATION.md`** - Cyberpunk 2077 via RED4ext + redscript TCP
+  - Original Third Space plugin (not a fork of OWO Nexus assets)
+  - MVP: directional `player_hit` + weapon-class gunfire / solenoid recoil
+  - Steam App ID 1091500; requires RED4ext + redscript
+  - ✅ **IMPLEMENTED** - See `cyberpunk-mod/`
+
 - **`TITANFALL2_INTEGRATION.md`** - Titanfall 2 vest and gun recoil (flat + VR)
   - Event names from Florian's [Titanfall2VR_bhaptics](https://github.com/floh-bhaptics/Titanfall2VR_bhaptics)
   - One Northstar plugin for CircuitLord VR (`TF2VR`) and flat Northstar (`R2Northstar`)

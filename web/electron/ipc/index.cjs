@@ -14,6 +14,7 @@ const { registerL4D2Handlers } = require("./l4d2Handlers.cjs");
 const { registerPistolWhipHandlers } = require("./pistolwhipHandlers.cjs");
 const { registerBattleSisterHandlers } = require("./battlesisterHandlers.cjs");
 const { registerGunmanContractsHandlers } = require("./gunmancontractsHandlers.cjs");
+const { registerCyberpunkHandlers } = require("./cyberpunkHandlers.cjs");
 const { registerTitanfall2Handlers } = require("./titanfall2Handlers.cjs");
 const { registerEffectsHandlers } = require("./effectsHandlers.cjs");
 const { registerScreenHealthHandlers } = require("./screenHealthHandlers.cjs");
@@ -54,6 +55,9 @@ function registerAllHandlers(getDaemonBridge, getMainWindow, reconnectToDaemon) 
   // Gunman Contracts Standalone integration handlers
   registerGunmanContractsHandlers(getMainWindow);
 
+  // Cyberpunk 2077 integration handlers
+  registerCyberpunkHandlers(getMainWindow);
+
   // Titanfall 2 VR integration handlers
   registerTitanfall2Handlers(getMainWindow);
 
@@ -86,6 +90,7 @@ module.exports = {
   registerPistolWhipHandlers,
   registerBattleSisterHandlers,
   registerGunmanContractsHandlers,
+  registerCyberpunkHandlers,
   registerEffectsHandlers,
   registerScreenHealthHandlers,
   registerRelayHandlers,

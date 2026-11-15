@@ -1107,6 +1107,56 @@ class DaemonBridge extends EventEmitter {
     }
   }
 
+  async cyberpunkStart(solenoidRecoil) {
+    try {
+      const params = {};
+      if (solenoidRecoil && typeof solenoidRecoil === "object") {
+        if (solenoidRecoil.enabled_events && typeof solenoidRecoil.enabled_events === "object") {
+          params.enabled_events = solenoidRecoil.enabled_events;
+        }
+        const { enabled_events: _ignored, ...solenoidOnly } = solenoidRecoil;
+        if (Object.keys(solenoidOnly).length > 0) {
+          params.solenoid_recoil = solenoidOnly;
+        }
+      }
+      const response = await this.sendCommand("cyberpunk_start", params);
+      return {
+        success: response.success ?? true,
+        error: response.message,
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  async cyberpunkStop() {
+    try {
+      await this.sendCommand("cyberpunk_stop");
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  async cyberpunkStatus() {
+    try {
+      const response = await this.sendCommand("cyberpunk_status");
+      return {
+        success: true,
+        running: response.running ?? false,
+        events_received: response.events_received ?? 0,
+        last_event_ts: response.last_event_ts ?? null,
+        last_event_type: response.last_event_type ?? null,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        running: false,
+        error: error.message,
+      };
+    }
+  }
+
   async titanfall2Start(solenoidRecoil) {
     try {
       const params = {};
