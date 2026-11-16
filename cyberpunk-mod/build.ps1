@@ -92,7 +92,13 @@ $pkgPlugin = Join-Path $modRoot "package\red4ext\plugins\TSC_Cyberpunk"
 New-Item -ItemType Directory -Path $pkgPlugin -Force | Out-Null
 Copy-Item $dllPath (Join-Path $pkgPlugin "TSC_Cyberpunk.dll") -Force
 
-$pkgScripts = Join-Path $modRoot "package\r6\scripts\TSC"
+$pkgScriptsRoot = Join-Path $modRoot "package\r6\scripts"
+$pkgScripts = Join-Path $pkgScriptsRoot "TSC Haptics"
+# Drop legacy folder name so the game reports "TSC Haptics", not "TSC"
+$legacyPkgScripts = Join-Path $pkgScriptsRoot "TSC"
+if (Test-Path $legacyPkgScripts) {
+    Remove-Item $legacyPkgScripts -Recurse -Force
+}
 New-Item -ItemType Directory -Path $pkgScripts -Force | Out-Null
 Copy-Item (Join-Path $modRoot "scripts\*") $pkgScripts -Force
 
@@ -100,6 +106,10 @@ $destDir = Join-Path $modRoot "..\mods\cyberpunk"
 New-Item -ItemType Directory -Path $destDir -Force | Out-Null
 Copy-Item $dllPath (Join-Path $destDir "TSC_Cyberpunk.dll") -Force
 Copy-Item (Join-Path $modRoot "package\*") $destDir -Recurse -Force
+$legacyModsScripts = Join-Path $destDir "r6\scripts\TSC"
+if (Test-Path $legacyModsScripts) {
+    Remove-Item $legacyModsScripts -Recurse -Force
+}
 
 Write-Host "Built: $dllPath" -ForegroundColor Green
 Write-Host "Packaged: $pkgPlugin and $destDir" -ForegroundColor Green

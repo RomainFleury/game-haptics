@@ -109,6 +109,19 @@ function setCyberpunkSolenoidRecoil(solenoidRecoil) {
   return settings.solenoidRecoil;
 }
 
+/** Default true: skip REDlauncher via --launcher-skip (disables My Rewards / cross-saves). */
+function getCyberpunkSkipLauncher() {
+  const settings = loadSettings();
+  return settings.skipLauncher !== undefined ? Boolean(settings.skipLauncher) : true;
+}
+
+function setCyberpunkSkipLauncher(skipLauncher) {
+  const settings = loadSettings();
+  settings.skipLauncher = Boolean(skipLauncher);
+  saveSettings(settings);
+  return settings.skipLauncher;
+}
+
 module.exports = {
   DEFAULT_ENABLED_EVENTS,
   getCyberpunkGameDir,
@@ -117,4 +130,6 @@ module.exports = {
   setCyberpunkSolenoidRecoil,
   getCyberpunkEnabledEvents,
   setCyberpunkEnabledEvents,
+  getCyberpunkSkipLauncher,
+  setCyberpunkSkipLauncher,
 };

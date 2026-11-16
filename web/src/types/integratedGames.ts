@@ -79,7 +79,14 @@ export interface ModCreditLink {
  */
 export interface ModInfo {
   name: string;
+  /** Primary download URL (used when downloadLinks is omitted). */
   downloadUrl: string;
+  /**
+   * Optional labeled download URLs (e.g. RED4ext + redscript).
+   * Prefer these over a single Download button when set.
+   * UI copies the URL on click / right-click (Electron can't browse Nexus well).
+   */
+  downloadLinks?: ModCreditLink[];
   /** Upstream / original mod repo (also used as the Setup Guide "Original mod" button). */
   githubUrl?: string;
   installInstructions: string[];
@@ -138,6 +145,15 @@ export interface GameIntegrationPageProps {
   
   /** Additional stats to show */
   additionalStats?: ReactNode;
+
+  /**
+   * Override Steam launch options for the Launch button.
+   * Pass `undefined` to use `game.steamLaunchOptions`; pass `null` or `""` for none.
+   */
+  steamLaunchOptionsOverride?: string | null;
+
+  /** Extra controls rendered under the Start / Launch button row */
+  controlsExtra?: ReactNode;
 
   /** Use full content width (no max-width cap). Useful for screenshot-heavy UIs. */
   wide?: boolean;

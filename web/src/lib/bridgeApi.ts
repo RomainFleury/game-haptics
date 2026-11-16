@@ -709,6 +709,7 @@ declare global {
         gameDir?: string | null;
         solenoidRecoil?: SolenoidRecoilSettings;
         enabledEvents?: Record<string, boolean>;
+        skipLauncher?: boolean;
         error?: string;
       }>;
       cyberpunkSetSolenoidRecoil: (
@@ -717,6 +718,9 @@ declare global {
       cyberpunkSetEnabledEvents: (
         enabledEvents: Record<string, boolean>
       ) => Promise<{ success: boolean; enabledEvents?: Record<string, boolean>; error?: string }>;
+      cyberpunkSetSkipLauncher: (
+        skipLauncher: boolean
+      ) => Promise<{ success: boolean; skipLauncher?: boolean; error?: string }>;
       cyberpunkBrowseGameDir: () => Promise<{
         success: boolean;
         gameDir?: string;
@@ -1514,6 +1518,7 @@ export async function cyberpunkGetSettings(): Promise<{
   gameDir?: string | null;
   solenoidRecoil?: SolenoidRecoilSettings;
   enabledEvents?: Record<string, boolean>;
+  skipLauncher?: boolean;
   error?: string;
 }> {
   return await ensureBridge().cyberpunkGetSettings();
@@ -1529,6 +1534,12 @@ export async function cyberpunkSetEnabledEvents(
   enabledEvents: Record<string, boolean>
 ): Promise<{ success: boolean; enabledEvents?: Record<string, boolean>; error?: string }> {
   return await ensureBridge().cyberpunkSetEnabledEvents(enabledEvents);
+}
+
+export async function cyberpunkSetSkipLauncher(
+  skipLauncher: boolean
+): Promise<{ success: boolean; skipLauncher?: boolean; error?: string }> {
+  return await ensureBridge().cyberpunkSetSkipLauncher(skipLauncher);
 }
 
 export async function cyberpunkBrowseGameDir(): Promise<{

@@ -125,6 +125,8 @@ contextBridge.exposeInMainWorld("vestBridge", {
     ipcRenderer.invoke("cyberpunk:setSolenoidRecoil", solenoidRecoil),
   cyberpunkSetEnabledEvents: (enabledEvents) =>
     ipcRenderer.invoke("cyberpunk:setEnabledEvents", enabledEvents),
+  cyberpunkSetSkipLauncher: (skipLauncher) =>
+    ipcRenderer.invoke("cyberpunk:setSkipLauncher", skipLauncher),
   cyberpunkBrowseGameDir: () => ipcRenderer.invoke("cyberpunk:browseGameDir"),
   cyberpunkGetGameDir: () => ipcRenderer.invoke("cyberpunk:getGameDir"),
   cyberpunkSetGameDir: (gameDir) => ipcRenderer.invoke("cyberpunk:setGameDir", gameDir),

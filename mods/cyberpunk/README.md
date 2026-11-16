@@ -8,7 +8,7 @@ files into the Cyberpunk 2077 game root (it does not compile).
 ```
 mods/cyberpunk/
 ├─ red4ext/plugins/TSC_Cyberpunk/TSC_Cyberpunk.dll   ← versioned binary
-└─ r6/scripts/TSC/
+└─ r6/scripts/TSC Haptics/
    ├─ Natives.reds
    ├─ FireHooks.reds
    └─ HitHooks.reds

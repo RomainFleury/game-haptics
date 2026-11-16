@@ -4,10 +4,15 @@ import {
   CyberpunkGameEvent,
 } from "../../hooks/useCyberpunkIntegration";
 import { GameIntegrationPage } from "../../components/GameIntegrationPage";
+import { CopyUrlButton } from "../../components/CopyUrlButton";
 import { getIntegratedGame } from "../../data/integratedGames";
 import type { GameEvent, EventDisplayInfo, ModInfo } from "../../types/integratedGames";
 
 const game = getIntegratedGame("cyberpunk")!;
+
+const RED4EXT_URL = "https://www.nexusmods.com/cyberpunk2077/mods/2380";
+const REDSCRIPT_URL = "https://www.nexusmods.com/cyberpunk2077/mods/1511";
+const OWO_PRIOR_ART_URL = "https://www.nexusmods.com/cyberpunk2077/mods/31204";
 
 function formatInstallMessage(result: {
   success?: boolean;
@@ -73,6 +78,8 @@ export function CyberpunkIntegrationPage() {
     setSolenoidRecoilSettings,
     enabledEvents,
     setEventEnabled,
+    skipLauncher,
+    setSkipLauncher,
     restartRequired,
     gameDir,
     modStatus,
@@ -100,12 +107,16 @@ export function CyberpunkIntegrationPage() {
   }));
 
   const modInfo: ModInfo = {
-    name: "TSC_Cyberpunk (RED4ext + redscript)",
-    downloadUrl: "https://www.nexusmods.com/cyberpunk2077/mods/2380",
-    githubUrl: "https://wiki.redmodding.org/",
+    name: "TSC Haptics (RED4ext + redscript)",
+    downloadUrl: RED4EXT_URL,
+    downloadLinks: [
+      { label: "Copy RED4ext URL", url: RED4EXT_URL },
+      { label: "Copy redscript URL", url: REDSCRIPT_URL },
+    ],
     installInstructions: [
-      "Install RED4ext and redscript into Cyberpunk 2077",
-      "Select the game folder below and click Install Mod (builds TSC_Cyberpunk.dll if needed)",
+      "Install RED4ext into the Cyberpunk 2077 folder (Copy RED4ext URL → paste in your browser)",
+      "Install redscript into the same game folder (Copy redscript URL → paste in your browser)",
+      "On this page: Browse → select the Cyberpunk 2077 folder → click Install Mod (deploys TSC Haptics)",
       "Start the vest daemon, click Start on this page, then launch the game",
       "Do not run the OWO Skin / bHaptics CP2077 haptic mods at the same time",
     ],
@@ -113,18 +124,9 @@ export function CyberpunkIntegrationPage() {
       summary:
         "Original TSC RED4ext/redscript forwarder. Event ideas inspired by the public OWO/bHaptics Cyberpunk haptic surface (not a fork of those Nexus archives).",
       links: [
-        {
-          label: "OWO Skin – Cyberpunk 2077 (prior art)",
-          url: "https://www.nexusmods.com/cyberpunk2077/mods/31204",
-        },
-        {
-          label: "RED4ext",
-          url: "https://www.nexusmods.com/cyberpunk2077/mods/2380",
-        },
-        {
-          label: "redscript",
-          url: "https://www.nexusmods.com/cyberpunk2077/mods/1511",
-        },
+        { label: "OWO Skin – Cyberpunk 2077 (prior art)", url: OWO_PRIOR_ART_URL },
+        { label: "RED4ext", url: RED4EXT_URL },
+        { label: "redscript", url: REDSCRIPT_URL },
       ],
     },
   };
@@ -166,11 +168,41 @@ export function CyberpunkIntegrationPage() {
             </span>
           </div>
           <div>
-            RED4ext:{" "}
+            RED4ext loader:{" "}
             <span className={modStatus.red4extInstalled ? "text-emerald-400" : "text-amber-400"}>
               {modStatus.red4extInstalled ? "detected" : "not detected"}
             </span>
           </div>
+          <div>
+            redscript (scc.exe):{" "}
+            <span className={modStatus.redscriptInstalled ? "text-emerald-400" : "text-amber-400"}>
+              {modStatus.redscriptInstalled ? "detected" : "not detected"}
+            </span>
+          </div>
+          {(!modStatus.red4extInstalled || !modStatus.redscriptInstalled) && gameDir && (
+            <div className="space-y-2 rounded-lg bg-amber-900/30 border border-amber-600/40 px-3 py-2 text-amber-100">
+              <p>
+                No events until RED4ext + redscript are installed into the game folder. Our plugin
+                alone does not load without those Nexus mods.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {!modStatus.red4extInstalled && (
+                  <CopyUrlButton
+                    label="Copy RED4ext URL"
+                    url={RED4EXT_URL}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-amber-700/80 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-amber-600"
+                  />
+                )}
+                {!modStatus.redscriptInstalled && (
+                  <CopyUrlButton
+                    label="Copy redscript URL"
+                    url={REDSCRIPT_URL}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-amber-700/80 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-amber-600"
+                  />
+                )}
+              </div>
+            </div>
+          )}
           {modStatus.missingFiles && modStatus.missingFiles.length > 0 && (
             <div className="text-amber-300/90">Missing: {modStatus.missingFiles.join(", ")}</div>
           )}
@@ -280,34 +312,62 @@ export function CyberpunkIntegrationPage() {
         Cyberpunk 2077 talks to the daemon over TCP 5050. A RED4ext plugin plus redscript hooks send
         directional hits and weapon-class gunfire for vest cells and optional solenoid recoil.
       </p>
-      <ol className="list-decimal list-inside space-y-2 text-slate-400">
+      <ol className="list-decimal list-outside ml-4 space-y-3 text-slate-400">
         <li>
-          <strong className="text-slate-300">Install RED4ext + redscript</strong> into the Cyberpunk
-          2077 folder (same prerequisites as the community OWO haptic mod).
+          <strong className="text-slate-300">Install RED4ext</strong> into the Cyberpunk 2077 folder.
+          <div className="mt-1.5">
+            <CopyUrlButton
+              label="Copy RED4ext URL"
+              url={RED4EXT_URL}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-amber-700/80 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-amber-600"
+            />
+          </div>
         </li>
         <li>
-          <strong className="text-slate-300">Install the vest mod</strong> with the button above. That
-          builds <code className="bg-slate-800 px-1 rounded">TSC_Cyberpunk.dll</code> if needed
-          and copies plugin + <code className="bg-slate-800 px-1 rounded">r6/scripts/TSC</code>.
+          <strong className="text-slate-300">Install redscript</strong> into the same game folder.
+          <div className="mt-1.5">
+            <CopyUrlButton
+              label="Copy redscript URL"
+              url={REDSCRIPT_URL}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-amber-700/80 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-amber-600"
+            />
+          </div>
         </li>
         <li>
-          <strong className="text-slate-300">Start this integration</strong> (and the daemon) before
-          launching the game. Events are ignored until Start is pressed.
+          <strong className="text-slate-300">On this page:</strong> Browse → select the Cyberpunk 2077
+          folder → click <strong className="text-slate-300">Install Mod</strong> (copies{" "}
+          <code className="bg-slate-800 px-1 rounded">TSC_Cyberpunk.dll</code> +{" "}
+          <code className="bg-slate-800 px-1 rounded">r6/scripts/TSC Haptics</code>).
+        </li>
+        <li>
+          <strong className="text-slate-300">Start</strong> the vest daemon, click{" "}
+          <strong className="text-slate-300">Start</strong> on this page, then launch the game.
+          Events are ignored until Start is pressed.
         </li>
       </ol>
-      <p className="text-slate-500 text-xs">
-        Prior art:{" "}
-        <a
-          className="underline"
-          href="https://www.nexusmods.com/cyberpunk2077/mods/31204"
-          target="_blank"
-          rel="noreferrer"
-        >
-          OWO Skin – Cyberpunk 2077
-        </a>{" "}
-        (not redistributed; write-your-own hooks).
+      <p className="text-slate-500 text-xs flex flex-wrap items-center gap-2">
+        Prior art (not redistributed):
+        <CopyUrlButton label="Copy OWO Skin URL" url={OWO_PRIOR_ART_URL} />
       </p>
     </div>
+  );
+
+  const controlsExtra = (
+    <label className="mt-3 flex items-start gap-3 rounded-lg bg-slate-900/40 border border-slate-700/40 px-3 py-2 max-w-xl">
+      <input
+        type="checkbox"
+        checked={skipLauncher}
+        onChange={(e) => void setSkipLauncher(e.target.checked)}
+        className="mt-1 h-4 w-4 shrink-0"
+      />
+      <div className="min-w-0">
+        <div className="text-sm text-slate-200">Skip REDlauncher (--launcher-skip)</div>
+        <div className="text-xs text-slate-500">
+          Skips the launcher only. My Rewards and cross-platform saves need REDlauncher — leave this
+          unchecked when you need those.
+        </div>
+      </div>
+    </label>
   );
 
   return (
@@ -330,6 +390,8 @@ export function CyberpunkIntegrationPage() {
       modInfo={modInfo}
       setupGuide={setupGuide}
       configurationPanel={configurationPanel}
+      steamLaunchOptionsOverride={skipLauncher ? "--launcher-skip" : null}
+      controlsExtra={controlsExtra}
     />
   );
 }

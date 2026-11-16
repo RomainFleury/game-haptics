@@ -6,6 +6,7 @@ import {
   cyberpunkGetSettings,
   cyberpunkSetSolenoidRecoil,
   cyberpunkSetEnabledEvents,
+  cyberpunkSetSkipLauncher,
   cyberpunkBrowseGameDir,
   cyberpunkCheckModInstalled,
   cyberpunkInstallMod,
@@ -44,6 +45,7 @@ export function useCyberpunkIntegration() {
   const [enabledEvents, setEnabledEvents] = useState<CyberpunkEnabledEvents | null>(null);
   const [restartRequired, setRestartRequired] = useState(false);
   const [gameDir, setGameDir] = useState("");
+  const [skipLauncher, setSkipLauncherState] = useState(true);
   const [modStatus, setModStatus] = useState<{
     installed: boolean;
     dllInstalled?: boolean;
@@ -79,6 +81,9 @@ export function useCyberpunkIntegration() {
         }
         if (result.enabledEvents) {
           setEnabledEvents(result.enabledEvents);
+        }
+        if (typeof result.skipLauncher === "boolean") {
+          setSkipLauncherState(result.skipLauncher);
         }
         if (result.gameDir) {
           setGameDir(result.gameDir);
@@ -219,6 +224,15 @@ export function useCyberpunkIntegration() {
     [enabledEvents, status.running]
   );
 
+  const setSkipLauncher = useCallback(async (enabled: boolean) => {
+    setSkipLauncherState(enabled);
+    try {
+      await cyberpunkSetSkipLauncher(enabled);
+    } catch (err) {
+      console.error("Failed to save Cyberpunk skip-launcher setting:", err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchSettings();
     fetchStatus();
@@ -256,6 +270,8 @@ export function useCyberpunkIntegration() {
     setSolenoidRecoilSettings,
     enabledEvents,
     setEventEnabled,
+    skipLauncher,
+    setSkipLauncher,
     restartRequired,
     gameDir,
     modStatus,

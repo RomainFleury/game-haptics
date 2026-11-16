@@ -1,5 +1,6 @@
 // Incoming damage on the player → directional player_hit.
 // Best-effort angle: 0° front, 90° left, 180° back, 270° right.
+// OnHit lives on ScriptedPuppet (not PlayerPuppet) in current game builds.
 
 public func TSC_HitAngleDegrees(player: ref<GameObject>, hitPos: Vector4) -> Float {
   let playerPos: Vector4 = player.GetWorldPosition();
@@ -53,10 +54,13 @@ public func TSC_HitIntensity(evt: ref<gameHitEvent>) -> Float {
   return t;
 }
 
-@wrapMethod(PlayerPuppet)
+@wrapMethod(ScriptedPuppet)
 protected cb func OnHit(evt: ref<gameHitEvent>) -> Bool {
   let result: Bool = wrappedMethod(evt);
 
+  if !this.IsPlayer() {
+    return result;
+  }
   if !IsDefined(evt) {
     return result;
   }

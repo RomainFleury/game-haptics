@@ -60,7 +60,10 @@ Newline JSON:
 
 1. Install [RED4ext](https://www.nexusmods.com/cyberpunk2077/mods/2380) and
    [redscript](https://www.nexusmods.com/cyberpunk2077/mods/1511) into the game folder.
-2. Build the plugin:
+   **Install Mod alone is not enough** — without the RED4ext loader (`bin/x64/winmm.dll`
+   or `red4ext/RED4ext.dll`) and redscript (`engine/tools/scc.exe`), the plugin never loads
+   and no TCP events appear.
+2. Build the plugin (developers only; releases ship the DLL under `mods/cyberpunk/`):
 
 ```powershell
 cd cyberpunk-mod
@@ -68,8 +71,10 @@ cd cyberpunk-mod
 ```
 
 3. In the app: Browse → Cyberpunk 2077 folder → **Install Mod** (copies
-   `red4ext/plugins/TSC_Cyberpunk/` + `r6/scripts/TSC/`).
+   `red4ext/plugins/TSC_Cyberpunk/` + `r6/scripts/TSC Haptics/`).
 4. Start the daemon, click **Start** on the Cyberpunk page, then launch the game.
+   Optional: enable **Skip REDlauncher** (`--launcher-skip`). That skips REDlauncher only;
+   **My Rewards** and **cross-platform saves** need REDlauncher (leave the option off).
 
 Optional remote daemon: `red4ext/plugins/TSC_Cyberpunk/TSC_Config.txt`
 with `IP` or `IP:PORT`.

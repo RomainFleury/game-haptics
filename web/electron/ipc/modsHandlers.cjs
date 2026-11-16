@@ -71,9 +71,9 @@ const MOD_CONFIG = {
     directory: "cyberpunk",
     files: [
       "red4ext/plugins/TSC_Cyberpunk/TSC_Cyberpunk.dll",
-      "r6/scripts/TSC/Natives.reds",
-      "r6/scripts/TSC/FireHooks.reds",
-      "r6/scripts/TSC/HitHooks.reds",
+      "r6/scripts/TSC Haptics/Natives.reds",
+      "r6/scripts/TSC Haptics/FireHooks.reds",
+      "r6/scripts/TSC Haptics/HitHooks.reds",
     ],
     targetFolder: "red4ext + r6/scripts",
     description: "RED4ext + redscript TCP client for Cyberpunk 2077 haptic feedback",

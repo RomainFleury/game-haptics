@@ -6,7 +6,7 @@ public func TSC_ClassifyWeapon(weapon: ref<WeaponObject>) -> String {
     return "gun_fire";
   }
 
-  let itemType: gamedataItemType = WeaponObject.GetWeaponType(weapon);
+  let itemType: gamedataItemType = WeaponObject.GetWeaponType(weapon.GetItemID());
 
   if Equals(itemType, gamedataItemType.Wea_Shotgun) || Equals(itemType, gamedataItemType.Wea_ShotgunDual) {
     return "shotgun_fire";
@@ -14,12 +14,13 @@ public func TSC_ClassifyWeapon(weapon: ref<WeaponObject>) -> String {
   if Equals(itemType, gamedataItemType.Wea_SniperRifle) {
     return "sniper_fire";
   }
-  if Equals(itemType, gamedataItemType.Wea_SMG) {
+  if Equals(itemType, gamedataItemType.Wea_SubmachineGun) {
     return "smg_fire";
   }
   if Equals(itemType, gamedataItemType.Wea_AssaultRifle)
+    || Equals(itemType, gamedataItemType.Wea_Rifle)
     || Equals(itemType, gamedataItemType.Wea_PrecisionRifle)
-    || Equals(itemType, gamedataItemType.Wea_LMG)
+    || Equals(itemType, gamedataItemType.Wea_LightMachineGun)
     || Equals(itemType, gamedataItemType.Wea_HeavyMachineGun) {
     return "rifle_fire";
   }

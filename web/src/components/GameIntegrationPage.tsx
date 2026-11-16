@@ -5,6 +5,7 @@ import type {
   GameEvent,
   EventDisplayInfo,
 } from "../types/integratedGames";
+import { CopyUrlButton } from "./CopyUrlButton";
 
 /**
  * Reusable template for game integration pages.
@@ -32,16 +33,22 @@ export function GameIntegrationPage({
   configurationPanel,
   modInfo,
   additionalStats,
+  steamLaunchOptionsOverride,
+  controlsExtra,
   wide = false,
   children,
 }: GameIntegrationPageProps) {
+  const launchOptions =
+    steamLaunchOptionsOverride !== undefined
+      ? steamLaunchOptionsOverride || ""
+      : game.steamLaunchOptions || "";
   const steamLaunchUrl = game.steamAppId
-    ? `steam://run/${game.steamAppId}${game.steamLaunchOptions ? `//${game.steamLaunchOptions}` : ""}`
+    ? `steam://run/${game.steamAppId}${launchOptions ? `//${launchOptions}` : ""}`
     : null;
 
-  // Collapsible section states
+  // Collapsible section states (setup open by default when a mod is required)
   const [configExpanded, setConfigExpanded] = useState(true);
-  const [guideExpanded, setGuideExpanded] = useState(false);
+  const [guideExpanded, setGuideExpanded] = useState(Boolean(modInfo));
 
   const getEventInfo = (type: string): EventDisplayInfo => {
     return eventDisplayMap[type] || { label: type, icon: "📡", color: "text-slate-400" };
@@ -100,20 +107,10 @@ export function GameIntegrationPage({
             Credits
           </h2>
           <p className="text-slate-300 mb-2">{modInfo.credits.summary}</p>
+          <p className="text-xs text-slate-500 mb-2">Click or right-click a link to copy the URL (paste in your browser).</p>
           <div className="flex flex-wrap gap-2">
             {modInfo.credits.links.map((link) => (
-              <a
-                key={link.url}
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-slate-700/80 px-3 py-1.5 text-xs font-medium text-sky-300 ring-1 ring-white/10 transition hover:bg-slate-600 hover:text-sky-200"
-              >
-                {link.label}
-                <svg className="h-3 w-3 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </a>
+              <CopyUrlButton key={link.url} label={link.label} url={link.url} />
             ))}
           </div>
         </section>
@@ -168,7 +165,7 @@ export function GameIntegrationPage({
             <a
               href={steamLaunchUrl}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600/80 to-blue-700/80 px-5 py-2.5 font-medium text-white transition hover:from-blue-600 hover:to-blue-700"
-              title={`Launch ${game.name} via Steam`}
+              title={`Launch ${game.name} via Steam${launchOptions ? ` (${launchOptions})` : ""}`}
             >
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.063 0 .125.004.188.006l2.861-4.142V8.91c0-2.495 2.028-4.524 4.524-4.524 2.494 0 4.524 2.031 4.524 4.527s-2.03 4.525-4.524 4.525h-.105l-4.076 2.911c0 .052.004.105.004.159 0 1.875-1.515 3.396-3.39 3.396-1.635 0-3.016-1.173-3.331-2.727L.436 15.27C1.862 20.307 6.486 24 11.979 24c6.627 0 11.999-5.373 11.999-12S18.605 0 11.979 0zM7.54 18.21l-1.473-.61c.262.543.714.999 1.314 1.25 1.297.539 2.793-.076 3.332-1.375.263-.63.264-1.319.005-1.949s-.75-1.121-1.377-1.383c-.624-.26-1.29-.249-1.878-.03l1.523.63c.956.4 1.409 1.5 1.009 2.455-.397.957-1.497 1.41-2.454 1.012H7.54zm11.415-9.303c0-1.662-1.353-3.015-3.015-3.015-1.665 0-3.015 1.353-3.015 3.015 0 1.665 1.35 3.015 3.015 3.015 1.663 0 3.015-1.35 3.015-3.015zm-5.273-.005c0-1.252 1.013-2.266 2.265-2.266 1.249 0 2.266 1.014 2.266 2.266 0 1.251-1.017 2.265-2.266 2.265-1.253 0-2.265-1.014-2.265-2.265z"/>
@@ -177,6 +174,8 @@ export function GameIntegrationPage({
             </a>
           )}
         </div>
+
+        {controlsExtra}
 
         {/* Stats */}
         {status.running && (
@@ -256,32 +255,30 @@ export function GameIntegrationPage({
               <h3 className="text-sm font-medium text-amber-200 mb-2">
                 ⚠️ Mod Required: {modInfo.name}
               </h3>
-              
-              {/* Download buttons */}
+
+              <p className="text-xs text-amber-200/60 mb-2">
+                Click or right-click a button to copy the download URL, then paste it in your browser.
+              </p>
+
+              {/* Download / copy-URL buttons */}
               <div className="flex flex-wrap gap-3 mb-3">
-                <a
-                  href={modInfo.downloadUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-lg bg-amber-600/80 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-600"
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Download
-                </a>
+                {(modInfo.downloadLinks?.length
+                  ? modInfo.downloadLinks
+                  : [{ label: "Copy download URL", url: modInfo.downloadUrl }]
+                ).map((link) => (
+                  <CopyUrlButton
+                    key={link.url}
+                    label={link.label}
+                    url={link.url}
+                    className="inline-flex items-center gap-2 rounded-lg bg-amber-600/80 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-600"
+                  />
+                ))}
                 {modInfo.githubUrl && (
-                  <a
-                    href={modInfo.githubUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <CopyUrlButton
+                    label={modInfo.credits ? "Copy original-mod URL" : "Copy GitHub URL"}
+                    url={modInfo.githubUrl}
                     className="inline-flex items-center gap-2 rounded-lg bg-slate-600/80 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-600"
-                  >
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-                    </svg>
-                    {modInfo.credits ? "Original mod" : "GitHub"}
-                  </a>
+                  />
                 )}
               </div>
 
