@@ -41,9 +41,10 @@ const MOD_CONFIG = {
   "alyx": {
     name: "Half-Life: Alyx",
     directory: "alyx",
-    files: [], // External mod - no bundled files
+    files: ["tactsuit.lua"],
+    targetFolder: "game/hlvr/scripts/vscripts",
     externalUrl: "https://www.nexusmods.com/halflifealyx/mods/6",
-    description: "Lua scripts from NexusMods for Half-Life: Alyx",
+    description: "Tactsuit Lua emitter + skill_manifest patch for Half-Life: Alyx",
   },
   "pistolwhip": {
     name: "Pistol Whip",

@@ -8,10 +8,11 @@ This document outlines the strategy and implementation for integrating haptic fe
 
 ## Quick Start
 
-1. **Install the mod scripts** - Download from [NexusMods](https://www.nexusmods.com/halflifealyx/mods/6) or [GitHub](https://github.com/floh-bhaptics/HalLifeAlyx_OWO/releases)
-2. **Extract to game folder** - `Steam/steamapps/common/Half-Life Alyx/`
-3. **Add launch option** - Add `-condebug` to Steam launch options
-4. **Start integration** - Use the Electron UI or daemon command
+1. **Browse** to `Half-Life Alyx/game/hlvr/console.log` in the app (launch once via Steam with `-condebug` if the file is missing).
+2. **Install Mod** in the Alyx page — copies bundled `mods/alyx/tactsuit.lua` into `game/hlvr/scripts/vscripts/` and ensures `skill_manifest.cfg` contains `script_reload_code tactsuit.lua`.
+3. **Start** the Alyx integration, then use **Launch via Steam** (`-condebug` is included).
+
+Manual alternative: download scripts from [NexusMods](https://www.nexusmods.com/halflifealyx/mods/6) or [bhaptics-half-life-alyx](https://github.com/bhaptics/bhaptics-half-life-alyx) and merge the skill_manifest line yourself.
 
 ### Daemon Commands
 

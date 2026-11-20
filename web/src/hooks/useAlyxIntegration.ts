@@ -8,9 +8,12 @@ import {
   alyxGetSettings,
   alyxSetSettings,
   alyxSetLogPath,
+  alyxCheckModInstalled,
+  alyxInstallMod,
   subscribeToDaemonEvents,
   AlyxStatus,
   AlyxModInfo,
+  AlyxModStatus,
   DaemonEvent,
   SolenoidRecoilSettings,
 } from "../lib/bridgeApi";
@@ -42,6 +45,8 @@ export function useAlyxIntegration() {
   const [enabledEvents, setEnabledEvents] = useState<AlyxEnabledEvents | null>(null);
   const [solenoidRecoil, setSolenoidRecoil] = useState<SolenoidRecoilSettings>(DEFAULT_SOLENOID);
   const [restartRequired, setRestartRequired] = useState(false);
+  const [modStatus, setModStatus] = useState<AlyxModStatus>({ installed: false });
+  const [installMessage, setInstallMessage] = useState<string | null>(null);
   const eventIdCounter = useRef(0);
 
   // Fetch status on mount and periodically
@@ -82,9 +87,57 @@ export function useAlyxIntegration() {
         if (result.solenoidRecoil) {
           setSolenoidRecoil(result.solenoidRecoil);
         }
+        if (result.modStatus) {
+          setModStatus(result.modStatus);
+        }
       }
     } catch (err) {
       console.error("Failed to get Alyx settings:", err);
+    }
+  }, []);
+
+  const checkModInstalled = useCallback(async () => {
+    try {
+      const result = await alyxCheckModInstalled();
+      if (result.success) {
+        setModStatus(result);
+      }
+    } catch (err) {
+      console.error("Failed to check Alyx mod status:", err);
+    }
+  }, []);
+
+  const installMod = useCallback(async () => {
+    setLoading(true);
+    setInstallMessage(null);
+    setError(null);
+    try {
+      const result = await alyxInstallMod();
+      if (result.success) {
+        setModStatus(result);
+        const parts = [
+          result.copiedFiles?.length ? `Copied ${result.copiedFiles.join(", ")}` : "Install complete",
+        ];
+        if (result.skillManifest?.alreadyPresent) {
+          parts.push("skill_manifest already had tactsuit line");
+        } else if (result.skillManifest?.created) {
+          parts.push("created skill_manifest.cfg");
+        } else if (result.skillManifest?.patched) {
+          parts.push("patched skill_manifest.cfg");
+        }
+        setInstallMessage(parts.join(". "));
+        return result;
+      }
+      setError(result.error || "Failed to install Alyx mod");
+      setInstallMessage(result.error || "Install failed");
+      return result;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to install Alyx mod";
+      setError(message);
+      setInstallMessage(message);
+      return { success: false, error: message };
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -92,10 +145,11 @@ export function useAlyxIntegration() {
     fetchStatus();
     fetchModInfo();
     fetchSettings();
+    checkModInstalled();
     // Poll status every 5 seconds, but preserve any existing error
     const interval = setInterval(() => fetchStatus(true), 5000);
     return () => clearInterval(interval);
-  }, [fetchStatus, fetchModInfo, fetchSettings]);
+  }, [fetchStatus, fetchModInfo, fetchSettings, checkModInstalled]);
 
   // Subscribe to daemon events for Alyx game events
   useEffect(() => {
@@ -185,6 +239,11 @@ export function useAlyxIntegration() {
       if (result.success && result.path) {
         setSavedLogPath(result.path);
         setError(null);
+        if (result.modStatus) {
+          setModStatus(result.modStatus);
+        } else {
+          await checkModInstalled();
+        }
         return result.path;
       }
       return null;
@@ -192,7 +251,7 @@ export function useAlyxIntegration() {
       console.error("Failed to browse for log path:", err);
       return null;
     }
-  }, []);
+  }, [checkModInstalled]);
 
   // Set log path manually
   const setLogPath = useCallback(async (logPath: string | null) => {
@@ -249,6 +308,8 @@ export function useAlyxIntegration() {
     error,
     gameEvents,
     modInfo,
+    modStatus,
+    installMessage,
     savedLogPath,
     enabledEvents,
     solenoidRecoil,
@@ -260,6 +321,8 @@ export function useAlyxIntegration() {
     setLogPath,
     setEventEnabled,
     setSolenoidRecoilSettings,
+    checkModInstalled,
+    installMod,
     refresh: fetchStatus,
   };
 }

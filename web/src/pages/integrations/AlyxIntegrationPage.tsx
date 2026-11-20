@@ -1,5 +1,6 @@
 import { useAlyxIntegration, AlyxGameEvent } from "../../hooks/useAlyxIntegration";
 import { GameIntegrationPage } from "../../components/GameIntegrationPage";
+import { CopyUrlButton } from "../../components/CopyUrlButton";
 import { getIntegratedGame } from "../../data/integratedGames";
 import type { GameEvent, EventDisplayInfo, ModInfo } from "../../types/integratedGames";
 
@@ -106,6 +107,8 @@ export function AlyxIntegrationPage() {
     error,
     gameEvents,
     modInfo,
+    modStatus,
+    installMessage,
     savedLogPath,
     enabledEvents,
     solenoidRecoil,
@@ -116,6 +119,8 @@ export function AlyxIntegrationPage() {
     browseLogPath,
     setEventEnabled,
     setSolenoidRecoilSettings,
+    checkModInstalled,
+    installMod,
   } = useAlyxIntegration();
 
   // Convert Alyx events to generic GameEvent format
@@ -128,17 +133,25 @@ export function AlyxIntegrationPage() {
 
   // Mod info for setup
   const modInfoData: ModInfo | undefined = modInfo ? {
-    name: "bHaptics Tactsuit Mod",
+    name: "Tactsuit Lua (bundled) + skill_manifest",
     downloadUrl: modInfo.download_url,
     githubUrl: modInfo.github_url,
-    installInstructions: modInfo.install_instructions.map(s => s.replace(/^\d+\.\s*/, "")),
+    installInstructions: [
+      "Browse to Half-Life Alyx/game/hlvr/console.log (launch once with -condebug if the file is missing)",
+      "Click Install Mod — copies tactsuit.lua into scripts/vscripts and adds script_reload_code tactsuit.lua to skill_manifest.cfg",
+      "Start this integration, then Launch via Steam (-condebug is included on the button)",
+    ],
     credits: {
       summary:
-        "This integration reads console events from the community Half-Life: Alyx haptic Lua scripts (NexusMods bHaptics Tactsuit). Related script work is also published by Florian (floh-bhaptics).",
+        "Install Mod ships the public tactsuit.lua emitter from the bHaptics Alyx scripts. We only use console events; we do not run the bHaptics/OWO companion apps.",
       links: [
         {
           label: "bHaptics Tactsuit (NexusMods)",
           url: modInfo.download_url || "https://www.nexusmods.com/halflifealyx/mods/6",
+        },
+        {
+          label: "bhaptics-half-life-alyx (scripts)",
+          url: "https://github.com/bhaptics/bhaptics-half-life-alyx",
         },
         {
           label: "HalLifeAlyx_OWO (Florian)",
@@ -151,33 +164,76 @@ export function AlyxIntegrationPage() {
   // Configuration panel for log path
   const configurationPanel = (
     <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">
-          Console Log Path
-        </label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            readOnly
-            value={savedLogPath || status.log_path || ""}
-            placeholder="Auto-detect or browse to select..."
-            className="flex-1 rounded-lg bg-slate-900/50 border border-slate-600 px-3 py-2 text-sm text-slate-300 placeholder-slate-500"
-          />
-          <button
-            onClick={browseLogPath}
-            className="rounded-lg bg-slate-600 hover:bg-slate-500 px-4 py-2 text-sm font-medium text-white transition"
-          >
-            Browse...
-          </button>
-        </div>
-        <p className="mt-2 text-xs text-slate-500">
-          Usually located at: <code className="bg-slate-800 px-1 rounded">Steam/steamapps/common/Half-Life Alyx/game/hlvr/console.log</code>
-        </p>
-        {savedLogPath && (
-          <p className="mt-1 text-xs text-emerald-400">
-            ✓ Custom path saved
+      <div className="rounded-lg bg-slate-800/60 p-4 ring-1 ring-white/10 space-y-3">
+        <h4 className="text-sm font-medium text-slate-200">Mod installation</h4>
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">Console log path</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              readOnly
+              value={savedLogPath || status.log_path || ""}
+              placeholder="Browse to game/hlvr/console.log first..."
+              className="flex-1 rounded-lg bg-slate-900/50 border border-slate-600 px-3 py-2 text-sm text-slate-300 placeholder-slate-500"
+            />
+            <button
+              onClick={browseLogPath}
+              disabled={loading}
+              className="rounded-lg bg-slate-600 hover:bg-slate-500 px-4 py-2 text-sm font-medium text-white transition disabled:opacity-50"
+            >
+              Browse...
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            Usually:{" "}
+            <code className="bg-slate-800 px-1 rounded">
+              Steam/steamapps/common/Half-Life Alyx/game/hlvr/console.log
+            </code>
           </p>
-        )}
+        </div>
+
+        <div className="space-y-1 text-xs text-slate-400">
+          <div>
+            tactsuit.lua:{" "}
+            <span className={modStatus.luaInstalled ? "text-emerald-400" : "text-amber-400"}>
+              {modStatus.luaInstalled ? "installed" : "missing"}
+            </span>
+          </div>
+          <div>
+            skill_manifest.cfg:{" "}
+            <span className={modStatus.skillManifestPatched ? "text-emerald-400" : "text-amber-400"}>
+              {modStatus.skillManifestPatched
+                ? "has script_reload_code tactsuit.lua"
+                : "needs script_reload_code tactsuit.lua"}
+            </span>
+          </div>
+          {modStatus.missingFiles && modStatus.missingFiles.length > 0 && (
+            <div className="text-amber-300/90">Missing: {modStatus.missingFiles.join(", ")}</div>
+          )}
+          {installMessage && <div className="text-slate-300">{installMessage}</div>}
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button
+              onClick={() => void installMod()}
+              disabled={loading || !(savedLogPath || status.log_path)}
+              className="rounded-lg bg-cyan-700/80 px-3 py-2 text-sm font-medium text-white transition hover:bg-cyan-600 disabled:opacity-50"
+            >
+              {modStatus.installed ? "Reinstall Mod" : "Install Mod"}
+            </button>
+            <button
+              onClick={() => void checkModInstalled()}
+              disabled={loading}
+              className="rounded-lg bg-slate-600/80 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-600 disabled:opacity-50"
+            >
+              Recheck
+            </button>
+          </div>
+          {!(savedLogPath || status.log_path) && (
+            <p className="text-amber-200/80">
+              Select console.log first — Install Mod uses that path to find{" "}
+              <code className="bg-slate-800 px-1 rounded">game/hlvr</code>.
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="pt-2 border-t border-slate-700/60">
@@ -260,24 +316,34 @@ export function AlyxIntegrationPage() {
   );
 
   // Setup guide
-  const setupGuide = modInfo ? (
+  const setupGuide = (
     <div className="space-y-3 text-sm">
-      {/* Skill manifest snippet */}
-      <div>
-        <p className="text-slate-300 mb-2">
-          Add to <code className="bg-slate-800 px-1 rounded">skill_manifest.cfg</code>:
-        </p>
-        <pre className="bg-slate-900/50 rounded-lg px-3 py-2 text-slate-300 overflow-x-auto text-xs">
-          {modInfo.skill_manifest_addition}
-        </pre>
-      </div>
-
-      <p className="text-slate-500 text-xs">
-        💡 The <code className="bg-slate-800 px-1 rounded">-condebug</code> launch option is required. 
-        Use the "Launch via Steam" button to start the game correctly.
+      <ol className="list-decimal list-outside ml-4 space-y-2 text-slate-400">
+        <li>
+          <strong className="text-slate-300">Browse</strong> to{" "}
+          <code className="bg-slate-800 px-1 rounded">game/hlvr/console.log</code>. If the file is
+          missing, Launch via Steam once with <code className="bg-slate-800 px-1 rounded">-condebug</code>{" "}
+          (already on the button), then browse again.
+        </li>
+        <li>
+          Click <strong className="text-slate-300">Install Mod</strong> — copies{" "}
+          <code className="bg-slate-800 px-1 rounded">tactsuit.lua</code> and adds{" "}
+          <code className="bg-slate-800 px-1 rounded">script_reload_code tactsuit.lua</code> to{" "}
+          <code className="bg-slate-800 px-1 rounded">skill_manifest.cfg</code> (backs up the cfg first).
+        </li>
+        <li>
+          <strong className="text-slate-300">Start</strong> this integration, then launch the game.
+        </li>
+      </ol>
+      <p className="text-slate-500 text-xs flex flex-wrap items-center gap-2">
+        Upstream scripts (optional manual download):
+        <CopyUrlButton
+          label="Copy Nexus URL"
+          url={modInfo?.download_url || "https://www.nexusmods.com/halflifealyx/mods/6"}
+        />
       </p>
     </div>
-  ) : undefined;
+  );
 
   // Additional stats
   const additionalStats = status.log_path ? (

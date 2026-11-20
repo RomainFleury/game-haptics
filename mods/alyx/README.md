@@ -1,33 +1,30 @@
-# Half-Life: Alyx Mod
+# Half-Life: Alyx — Tactsuit Lua scripts
 
-This mod comes from NexusMods and requires manual download due to licensing.
+Shipped for **Install Mod** in the app. Upstream Lua is from the public
+[bhaptics/bhaptics-half-life-alyx](https://github.com/bhaptics/bhaptics-half-life-alyx)
+repo (also distributed on [NexusMods](https://www.nexusmods.com/halflifealyx/mods/6)).
+We only need the console event emitter (`tactsuit.lua`); we do **not** ship the
+bHaptics/OWO Windows companion apps.
 
-## Download Source
+## Files
 
-**NexusMods:** https://www.nexusmods.com/halflifealyx/mods/6
+| File | Install target |
+| --- | --- |
+| `tactsuit.lua` | `Half-Life Alyx/game/hlvr/scripts/vscripts/tactsuit.lua` |
 
-Download the Scripts and Application archives.
+Install Mod also ensures `game/hlvr/cfg/skill_manifest.cfg` contains:
 
-## What to Place Here
+```
+script_reload_code tactsuit.lua
+```
 
-After downloading from NexusMods:
-- `tactsuit.lua` - Main haptic script
-- Any other required Lua files
+## App flow
 
-## Why Not Bundled Automatically?
+1. Browse to `game/hlvr/console.log` (created after a `-condebug` launch).
+2. Click **Install Mod** — copies `tactsuit.lua` and patches `skill_manifest.cfg`.
+3. Start the Alyx integration, then launch via Steam (`-condebug` is already on the button).
 
-The Alyx mod is created by a third party (floh-bhaptics) and distributed via NexusMods.
-We link to it rather than redistribute to respect the original author's distribution preferences.
+## Attribution
 
-## Installation (for users)
-
-1. Download mod from NexusMods link above
-2. Extract Scripts archive to `Half-Life Alyx/game/hlvr/scripts/vscripts/`
-3. Add `-condebug` to Steam launch options
-4. Start the Third Space daemon
-5. Launch Half-Life: Alyx
-
-## Third Space Integration
-
-The Third Space daemon reads `console.log` output from the mod's Lua scripts.
-No additional files are needed - just install the original bHaptics mod and our daemon handles the rest.
+- Original scripts: ShizOf / bHaptics Tactsuit Alyx mod
+- Related OWO port: [floh-bhaptics/HalLifeAlyx_OWO](https://github.com/floh-bhaptics/HalLifeAlyx_OWO)

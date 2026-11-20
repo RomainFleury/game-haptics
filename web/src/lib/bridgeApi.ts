@@ -152,11 +152,25 @@ export type SolenoidRecoilSettings = {
   holdOnReload?: boolean;
 };
 
+export type AlyxModStatus = {
+  installed?: boolean;
+  luaInstalled?: boolean;
+  skillManifestPatched?: boolean;
+  sourceAvailable?: boolean;
+  missingFiles?: string[];
+  reason?: string;
+  logPath?: string | null;
+  hlvrDir?: string;
+  luaDest?: string;
+  manifestPath?: string;
+};
+
 export type AlyxSettingsResult = {
   success: boolean;
   logPath?: string | null;
   enabledEvents?: Record<string, boolean>;
   solenoidRecoil?: SolenoidRecoilSettings;
+  modStatus?: AlyxModStatus;
   error?: string;
 };
 
@@ -503,14 +517,30 @@ declare global {
       alyxStop: () => Promise<AlyxStopResult>;
       alyxStatus: () => Promise<AlyxStatus>;
       alyxGetModInfo: () => Promise<AlyxModInfoResult>;
-      alyxBrowseLogPath: () => Promise<AlyxBrowseResult>;
+      alyxBrowseLogPath: () => Promise<AlyxBrowseResult & { modStatus?: AlyxModStatus }>;
       alyxGetSettings: () => Promise<AlyxSettingsResult>;
       alyxSetSettings: (settings: {
         logPath?: string | null;
         enabledEvents?: Record<string, boolean>;
         solenoidRecoil?: Partial<SolenoidRecoilSettings>;
       }) => Promise<{ success: boolean; error?: string }>;
-      alyxSetLogPath: (logPath: string | null) => Promise<{ success: boolean; error?: string }>;
+      alyxSetLogPath: (
+        logPath: string | null
+      ) => Promise<{ success: boolean; modStatus?: AlyxModStatus; error?: string }>;
+      alyxCheckModInstalled: () => Promise<{ success: boolean } & AlyxModStatus & { error?: string }>;
+      alyxInstallMod: () => Promise<
+        {
+          success: boolean;
+          copiedFiles?: string[];
+          destination?: string;
+          skillManifest?: {
+            patched?: boolean;
+            created?: boolean;
+            alreadyPresent?: boolean;
+          };
+          error?: string;
+        } & AlyxModStatus
+      >;
       // Left 4 Dead 2 Integration API
       l4d2Start: (logPath?: string, playerName?: string) => Promise<{
         success: boolean;
@@ -1271,8 +1301,32 @@ export async function alyxSetSettings(settings: {
 /**
  * Set Alyx log path.
  */
-export async function alyxSetLogPath(logPath: string | null): Promise<{ success: boolean; error?: string }> {
+export async function alyxSetLogPath(
+  logPath: string | null
+): Promise<{ success: boolean; modStatus?: AlyxModStatus; error?: string }> {
   return await ensureBridge().alyxSetLogPath(logPath);
+}
+
+export async function alyxCheckModInstalled(): Promise<
+  { success: boolean } & AlyxModStatus & { error?: string }
+> {
+  return await ensureBridge().alyxCheckModInstalled();
+}
+
+export async function alyxInstallMod(): Promise<
+  {
+    success: boolean;
+    copiedFiles?: string[];
+    destination?: string;
+    skillManifest?: {
+      patched?: boolean;
+      created?: boolean;
+      alreadyPresent?: boolean;
+    };
+    error?: string;
+  } & AlyxModStatus
+> {
+  return await ensureBridge().alyxInstallMod();
 }
 
 export type PistolWhipStatus = {

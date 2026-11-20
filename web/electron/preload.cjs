@@ -62,6 +62,8 @@ contextBridge.exposeInMainWorld("vestBridge", {
   alyxGetSettings: () => ipcRenderer.invoke("alyx:getSettings"),
   alyxSetSettings: (settings) => ipcRenderer.invoke("alyx:setSettings", settings),
   alyxSetLogPath: (logPath) => ipcRenderer.invoke("alyx:setLogPath", logPath),
+  alyxCheckModInstalled: () => ipcRenderer.invoke("alyx:checkModInstalled"),
+  alyxInstallMod: () => ipcRenderer.invoke("alyx:installMod"),
 
   // Left 4 Dead 2 Integration API
   l4d2Start: (logPath, playerName) => ipcRenderer.invoke("l4d2:start", logPath, playerName),

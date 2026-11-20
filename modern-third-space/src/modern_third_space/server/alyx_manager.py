@@ -783,11 +783,9 @@ def get_mod_info() -> dict:
         "download_url": MOD_DOWNLOAD_URL,
         "github_url": MOD_GITHUB_URL,
         "install_instructions": [
-            "1. Download the Scripts archive from NexusMods or GitHub",
-            "2. Extract to: Steam/steamapps/common/Half-Life Alyx/",
-            "3. Ensure vscripts folder exists at: game/hlvr/scripts/vscripts/",
-            "4. Add to skill_manifest.cfg: script_reload_code tactsuit.lua",
-            "5. Add -condebug to game launch options in Steam",
+            "1. Browse to Half-Life Alyx/game/hlvr/console.log (launch once with -condebug if missing)",
+            "2. Click Install Mod — copies tactsuit.lua and adds script_reload_code tactsuit.lua to skill_manifest.cfg",
+            "3. Start this integration, then use Launch via Steam (-condebug is included)",
         ],
         "skill_manifest_addition": SKILL_MANIFEST_ADDITION.strip(),
     }
